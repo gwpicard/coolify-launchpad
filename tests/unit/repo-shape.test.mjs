@@ -23,7 +23,8 @@ test('CLAUDE.md is the one-line import', () => {
   assert.equal(readFileSync(join(root, 'CLAUDE.md'), 'utf8').trim(), '@AGENTS.md');
 });
 
-for (const name of readdirSync(join(root, 'skills'))) {
+// Directories only: a stray file such as .DS_Store is not a skill.
+for (const name of readdirSync(join(root, 'skills'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
   test(`skills/${name} has the agreed frontmatter and a generated adapter`, () => {
     const src = readFileSync(join(root, 'skills', name, 'SKILL.md'), 'utf8');
     const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';

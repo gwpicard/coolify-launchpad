@@ -10,7 +10,7 @@ const root = new URL('..', import.meta.url).pathname;
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 const wrong = [];
 
-for (const name of readdirSync(join(root, 'skills'))) {
+for (const name of readdirSync(join(root, 'skills'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
   const file = join(root, 'skills', name, 'SKILL.md');
   const src = readFileSync(file, 'utf8');
   const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
