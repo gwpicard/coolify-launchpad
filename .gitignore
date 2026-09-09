@@ -1,0 +1,13 @@
+# Local state. This folder is the operator's working folder; nothing below leaves it.
+node_modules/
+dist/
+.pulumi/
+Pulumi.*.yaml
+!Pulumi.yaml
+.env
+.env.*
+!.env.example
+servers/*
+!servers/example.yaml
+!servers/.gitkeep
+.DS_Store
