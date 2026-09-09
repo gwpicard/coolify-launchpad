@@ -1,0 +1,9 @@
+# One file per server, at servers/<name>.yaml. Only this example is tracked.
+# Secrets never go here; they live in .env.<name>, which Git ignores.
+name: example                 # one lowercase word; also the Hetzner name and the Tailscale hostname
+hetzner:
+  location: nbg1
+  type: cpx32                 # x86, 4 vCPU, 8 GB: the size for a box that builds images
+public_lane: none             # none | a domain the team owns, or a DuckDNS one
+dashboard: github             # tailnet | github | internet, in coolify-devops's words
+install_tooling: true         # Node 22, Claude Code and the coolify-devops skills on the box

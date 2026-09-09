@@ -1,0 +1,25 @@
+{
+  "name": "coolify-launchpad",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Rent a server, install Coolify, join the tailnet, lock the firewall, hand over. The missing link between AI Build Kit and coolify-devops. Clone this repository and type /launch-server in Claude Code.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.mjs",
+    "validate:skills": "for s in skills/*/; do npx --yes skills-ref@latest validate \"$s\" || exit 1; done",
+    "validate:versions": "node scripts/check-versions.mjs",
+    "validate:adapters": "sh tools/build-adapters.sh --check",
+    "validate:prose": "sh tools/validate.sh",
+    "validate": "npm run validate:versions && npm run validate:adapters && npm run validate:prose && npm run validate:skills",
+    "check": "npm test && npm run validate",
+    "adapters": "sh tools/build-adapters.sh"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gwpicard/coolify-launchpad.git"
+  }
+}
