@@ -35,7 +35,10 @@ tells the whole story.
 
 ## Install
 
-One route in this version: clone the repository and work inside it.
+One route in this version: clone the repository and work inside it. The accounts,
+tokens and console clicks the launchpad cannot do for you are in
+[docs/before-you-launch.md](docs/before-you-launch.md), in order, each with a way
+to tell it worked. Read that page first if you have never set up a server.
 
 ```bash
 git clone https://github.com/gwpicard/coolify-launchpad

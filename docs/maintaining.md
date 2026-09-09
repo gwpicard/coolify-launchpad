@@ -63,6 +63,7 @@ documents disagree, the owner wins and the other is edited.
 | Document | Owns |
 |---|---|
 | `README.md` | What the launchpad is, how to install it, and where it sits between the other two kits, for someone deciding whether to use it. |
+| `docs/before-you-launch.md` | The accounts, tokens and console steps only the person can do, before, during and after a launch, in the order they are needed, each with a done-when line. The skills link to it at the moment each step is needed rather than repeating it. |
 | `docs/positioning.md` | The three-way story: the chain, what crosses each boundary, who carries it, and the exact server block and failure block formats. |
 | `docs/server-model.md` | The two lanes, the firewall rules per lane, the outside probe and its expected answers, why there is no `ufw`, why 22 is closed, and the troubleshooting table. |
 | `docs/design.md` | How a launch works, step by step, and the reason each step is where it is. |

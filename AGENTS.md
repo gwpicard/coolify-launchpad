@@ -37,6 +37,7 @@ program/                  Pulumi.yaml, index.ts, cloud-init/build.ts and its sni
 scripts/                  launch, check, retire, output: the dispatcher the skills call
 servers/                  example.yaml is tracked; every real server file is ignored
 docs/
+  before-you-launch.md    every step only the person can do, in order, for someone who has never set up a server
   positioning.md          the three-way story and the block formats
   server-model.md         lanes, firewall rules, the probe table, troubleshooting
   design.md               how a launch works and why each step is where it is

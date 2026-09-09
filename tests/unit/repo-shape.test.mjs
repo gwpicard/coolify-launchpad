@@ -9,7 +9,7 @@ import { join } from 'node:path';
 const root = new URL('../..', import.meta.url).pathname;
 const must = [
   'README.md', 'AGENTS.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md', 'LICENSE',
-  'docs/positioning.md', 'docs/server-model.md', 'docs/design.md', 'docs/sources.md', 'docs/maintaining.md',
+  'docs/before-you-launch.md', 'docs/positioning.md', 'docs/server-model.md', 'docs/design.md', 'docs/sources.md', 'docs/maintaining.md',
   'tests/rehearsal.md', 'servers/example.yaml', '.env.example',
   '.agents/maintainer-skills/humanizer/SKILL.md', '.agents/maintainer-skills/humanizer/LICENSE',
   'tests/lib/rule-shape.sh', 'tools/build-adapters.sh', 'tools/validate.sh',
