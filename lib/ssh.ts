@@ -99,6 +99,40 @@ export function sshRun(target: SshTarget, command: string, timeoutMs = SSH_COMMA
     return r.stdout;
 }
 
+/**
+ * A shell on the server, as the later Phase B steps, the check and the retire
+ * see it. `remote(target)` is the real one over SSH. The unit tests pass a
+ * stand-in, so the steps can be exercised without a server.
+ */
+export interface Remote {
+    /** Where the commands go, for messages: root@<address>. */
+    where: string;
+    run(command: string, timeoutMs?: number): string;
+    probe(command: string, timeoutMs?: number): ProbeResult;
+}
+
+export function remote(target: SshTarget): Remote {
+    return {
+        where: destination(target),
+        run: (command, timeoutMs) => sshRun(target, command, timeoutMs),
+        probe: (command, timeoutMs) => sshProbe(target, command, timeoutMs),
+    };
+}
+
+/**
+ * Read `key=value` lines. Every remote probe answers this way, so a parse
+ * does not depend on the order of the lines or on anything else the box
+ * prints.
+ */
+export function parseKeyValues(stdout: string): Map<string, string> {
+    const kv = new Map<string, string>();
+    for (const line of stdout.split(/\r?\n/)) {
+        const eq = line.indexOf("=");
+        if (eq > 0) kv.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
+    }
+    return kv;
+}
+
 /** Copy a file with scp, using the same options as `sshRun`. */
 export function scp(target: SshTarget, src: string, dst: string): void {
     const r = spawnSync("scp", sshArgs(target, [src, dst]), { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" });

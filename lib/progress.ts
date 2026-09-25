@@ -11,6 +11,8 @@ export interface ProgressEvent {
     detail?: string;
     /** Set on done, skipped and failed: wall-clock time since the step started. */
     durationMs?: number;
+    /** Set on a started step that waits for the person: what they must do now. */
+    ask?: string;
 }
 
 export type OnProgress = (e: ProgressEvent) => void;
@@ -24,9 +26,10 @@ export async function step<T>(
     label: string,
     fn: () => Promise<T> | T,
     describe?: (result: T) => string | undefined,
+    ask?: string,
 ): Promise<T> {
     const start = Date.now();
-    onProgress?.({ step: label, status: "started" });
+    onProgress?.({ step: label, status: "started", ...(ask ? { ask } : {}) });
     try {
         const result = await fn();
         const detail = describe?.(result);
@@ -41,4 +44,10 @@ export async function step<T>(
         });
         throw err;
     }
+}
+
+/** A step that did not need to run, with the reason as its detail. */
+export function skipped(onProgress: OnProgress | undefined, label: string, reason: string): void {
+    onProgress?.({ step: label, status: "started" });
+    onProgress?.({ step: label, status: "skipped", durationMs: 0, detail: reason });
 }

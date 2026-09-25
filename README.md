@@ -109,7 +109,7 @@ session, and coolify-devops never calls back. That is on purpose, and
 A first server. You type `/launch-server`. The agent asks for a name, where the
 server should run, whether anything will face the internet, and who may reach
 the dashboard. It checks your tokens are present, your tailnet is ready, and
-Pulumi is signed in. Then it builds. About ten minutes in, it asks you to open
+Pulumi is installed. Then it builds. About ten minutes in, it asks you to open
 an address in your browser and create the admin account. When you have, it
 closes the firewall and prints the server block.
 
@@ -208,8 +208,11 @@ a resume.
 
 **Does anything leave my computer?**
 Calls to Hetzner's API, and the Tailscale auth key, which travels to the new
-server inside Hetzner's user-data so the server can join your tailnet. Nothing
-else. The server block is written to a local file.
+server inside Hetzner's user-data so the server can join your tailnet. In
+`github` mode the launch also reads GitHub's public list of webhook ranges,
+which needs no token. The rest is your own traffic to your own server: SSH, the
+port probe and one request to Coolify over the tailnet. The server block is
+written to a local file.
 
 **Which coding agents does this work with?**
 Claude Code in this version. The commands are Agent Skills, so other agents are

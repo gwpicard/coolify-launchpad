@@ -51,7 +51,9 @@ export function pulumiProbe(ctx: PulumiContext, args: string[]): PulumiResult {
         encoding: "utf8",
         maxBuffer: 64 * 1024 * 1024,
     });
-    return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+    // A command that could not start at all has no output, only an error.
+    const stderr = (r.stderr ?? "") || (r.error ? `could not run pulumi: ${r.error.message}` : "");
+    return { status: r.status, stdout: r.stdout ?? "", stderr };
 }
 
 /** Run pulumi and return stdout. On failure, throw with the last lines of its output. */
@@ -77,6 +79,16 @@ export function ensureStack(ctx: PulumiContext): "created" | "existing" {
     }
     runPulumi(ctx, ["stack", "init", ctx.server, "--secrets-provider", "passphrase"]);
     return "created";
+}
+
+/**
+ * Whether the local state holds a stack for this server. Unlike ensureStack,
+ * this never creates one, so the check and the retire can ask it safely.
+ */
+export function stackExists(ctx: PulumiContext): boolean {
+    const list = runPulumi(ctx, ["stack", "ls", "--json"]);
+    const stacks = JSON.parse(list) as Array<{ name?: string }>;
+    return stacks.some((s) => s.name === ctx.server || s.name?.endsWith(`/${ctx.server}`));
 }
 
 /** One stack output as text. Secrets need `showSecrets`. */
