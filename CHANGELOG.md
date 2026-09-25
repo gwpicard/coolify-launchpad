@@ -8,8 +8,10 @@ refuses a version that does not match every skill.
 ## 0.1.0, 2026-09-25
 
 The first release. It takes a person from no server to one that
-coolify-devops's `/setup-coolify-devops` accepts, and it has been run once, in
-full, on a real Hetzner server.
+coolify-devops's `/setup-coolify-devops` accepts, and it has been run once on a
+real Hetzner server, from launch to retire. Two parts were not run: a resume
+after port 22 had closed, and a launch started by typing `/launch-server`
+itself.
 
 - Clone the repository and type `/launch-server` in Claude Code. It asks six
   questions, walks you through the Hetzner token, the tailnet policy, the auth
@@ -23,8 +25,7 @@ full, on a real Hetzner server.
   asked for them, closes port 22, applies the firewall for your lane, probes the
   public address from outside, and prints the server block and what is still
   yours to do.
-- `--resume` runs the second half again over the tailnet and leaves an env file
-  you have filled alone. `/check-server` reads a server back and changes
+- `--resume` runs the second half again over the tailnet. `/check-server` reads a server back and changes
   nothing. `/retire-server` destroys only a server the launchpad made, and only
   after you type its name.
 - The launchpad never reads a secret's value, never takes a token pasted into

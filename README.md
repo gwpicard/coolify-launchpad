@@ -29,6 +29,7 @@ tells the whole story.
 | Then type | `/launch-server` |
 | How long a launch takes | One interview of six questions, then about five minutes while the server builds, with one browser step about three minutes in. |
 | Where it runs | On your own computer, in the cloned folder. The server it makes is on Hetzner. |
+| Status | Version 0.1.0. Run once for real on Hetzner, in `github` mode with no public lane; `tests/rehearsal.md` lists what that run left unconfirmed. |
 | Licence | MIT |
 | Cost | Free. You pay for the server and the coding agent subscription. |
 

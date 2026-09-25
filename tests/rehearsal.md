@@ -173,9 +173,9 @@ The three skills, their references and the prose guards have passed
 One `cpx22` server in `nbg1` on Hetzner, dashboard exposure `github`, no public
 lane, the server-side tooling installed. The launchpad was the code that became
 0.1.0, still stamped 0.0.0. The operator's agent was a Claude Code session in
-the cloned folder that followed `/launch-server` as written. The person answered
-the six questions, made the Hetzner token and the auth key, and saved the
-tailnet policy in the console. On the server, coolify-devops 0.4.0 ran
+the cloned folder that followed `/launch-server` as written. That agent answered
+the six questions itself, from decisions made before the run. The person made
+the Hetzner token and the auth key, and saved the tailnet policy in the console. On the server, coolify-devops 0.4.0 ran
 `/setup-coolify-devops` through to its canary, and its `/host` then put a small
 web app on the server, reached over the tailnet. `/retire-server` took the server
 down the same day. Coolify 4.3.23 was what the installer installed.
@@ -219,7 +219,7 @@ Each row is a fact from the list above, in its order.
 | The tailnet node | Partly | `.Self.Tags` held `tag:server`, `.Self.KeyExpiry` was null, HTTPS was on and `RunSSH` was true; coolify-devops read the same values again. Which of the two MagicDNS fields the node gave was not recorded. |
 | GitHub's hook ranges | Partly | Six ranges were read, and the `github` rule and its read-back matched them. `/check-server` compared them with GitHub's list again and found them equal. No real push went through them. |
 | `npx -y skills add` over SSH | Held | Completed in 4.4 s with no terminal: five skills in `/root`, and `/root/skills-lock.json` written. |
-| The SSH grant | Held | Proved in 0.6 s with every key and password method off. The policy's `ssh` rule needed `group:server-admins` as its source, as the preflight reference already gives it. |
+| The SSH grant | Held | Proved in 0.6 s with every key and password method off. The policy's `ssh` rule worked with `group:server-admins` as its source, as the preflight reference gives it. `autogroup:admin` as the source was not tried in the run; the reference leaves it out on the strength of Tailscale's rules, read while the skill was built. |
 | The humanizer's placement | Not tried | |
 | `/setup-coolify-devops` step 2 | Partly | It accepted the launchpad's probe as its firewall check. With no Hetzner token on the box it could not read the rules itself, and its later `/health` listed "firewall not read back" among its gaps. |
 | A resume after 22 is closed | Not confirmed | The resume ran before the firewall step, so 22 was still open, though it chose the tailnet anyway. It wrote the env file for the first time, so leaving the file untouched was not tested either. |
@@ -231,7 +231,7 @@ Each row is a fact from the list above, in its order.
 | `/setup-coolify-devops` step 1 | Held | It read every binding from the box, and they matched the block, the Tailnet line included. |
 | `/check-server` | Held | 13 rows, all ok, and nothing changed. A second read after the GitHub App was added gave 14 of 14. |
 | The retire | Held | A first reply that was not the name was refused and nothing was destroyed. With the name, the node was logged out and stopped answering; the server, the SSH key and the firewall were destroyed; the stack and the two record files went; `.env.<name>` stayed. Read afterwards, the Hetzner project held no servers, firewalls, SSH keys or primary IPs. The console step that removes the machine was handed over and was still the person's to do when this was written. |
-| The node's identity | Held | The metadata service gave the stack's server id, 167401049, and the public IP matched. |
+| The node's identity | Held | The metadata service gave the stack's server id, and the public IP matched. |
 | The probe over IPv6 | Not tried | |
 | No token in a transcript | Did not hold | The launch and retire output carried none. On the server, a coolify-devops session listed its own env file and put the Coolify token in that session's transcript. That step belongs to coolify-devops and was reported to its maintainer. |
 
@@ -275,7 +275,7 @@ The next rehearsal has to cover what this one did not:
   load on the server too.
 
 Folded into this release: the announcement in `/launch-server` now says the ask
-comes a few minutes in, and `/retire-server` shows the exact name to type. The
+comes about three minutes in, and `/retire-server` shows the exact name to type. The
 repeated ask, the GitHub App advice and the 8080 gap are left for the next
 version.
 

@@ -6,8 +6,9 @@ import { b64 } from "../../lib/secrets.js";
  *
  * Left unset until a real run has confirmed that the installer takes a
  * version this way (tests/rehearsal.md lists it). The first real run left it
- * unset and got 4.3.23. Unset, the installer installs its current release. Set it to a version string such as the one
- * that run observed, and every later launch installs exactly that.
+ * unset and got 4.3.23. Unset, the installer installs its current release.
+ * Set it to a version string such as the one that run observed, and every
+ * later launch installs exactly that.
  */
 export const COOLIFY_VERSION: string | undefined = undefined;
 
