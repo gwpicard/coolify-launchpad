@@ -13,7 +13,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { envPath, loadSpec } from "../lib/spec.js";
-import { secretsForChild } from "../lib/env.js";
+import { SECRETS_AFTER_LAUNCH, secretsForChild } from "../lib/env.js";
 import { stackOutput, type PulumiContext } from "../lib/pulumi.js";
 import { remote } from "../lib/ssh.js";
 import { fetchGithubHooks, HetznerApi, httpStatus, probePort } from "../lib/hetzner-firewall.js";
@@ -47,7 +47,7 @@ async function main(): Promise<void> {
     }
     try {
         const spec = loadSpec(args.server, repoRoot);
-        const secrets = secretsForChild(envPath(spec.name, repoRoot));
+        const secrets = secretsForChild(envPath(spec.name, repoRoot), SECRETS_AFTER_LAUNCH);
         const ctx: PulumiContext = { repoRoot, server: spec.name, secrets };
         const report = await checkServer(spec, {
             stack: () => ({ publicIp: stackOutput(ctx, "ipv4Address"), serverId: Number(stackOutput(ctx, "serverId")) }),

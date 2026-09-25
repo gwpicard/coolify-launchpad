@@ -19,14 +19,14 @@
  */
 import { fileURLToPath } from "node:url";
 import { loadSpec, envPath, type ServerSpec } from "../lib/spec.js";
-import { requireEnvFile, secretsForChild } from "../lib/env.js";
+import { REQUIRED_SECRETS, SECRETS_AFTER_LAUNCH, requireEnvFile, secretsForChild } from "../lib/env.js";
 import { step, type OnProgress, type ProgressEvent } from "../lib/progress.js";
 import { ensureStack, runPulumi, stackOutput, type PulumiContext } from "../lib/pulumi.js";
 import { remote, withStagedKey, type SshTarget } from "../lib/ssh.js";
 import { waitForPhaseA, verifyTailnet, proveSshGrant } from "../lib/phase-b.js";
 import { fetchGithubHooks, HetznerApi, httpStatus, probePort } from "../lib/hetzner-firewall.js";
 import { stoppedFor, writeHandOver } from "../lib/server-block.js";
-import { phaseB, type PhaseBDeps, type PhaseBResult } from "../lib/launch-flow.js";
+import { chooseFirstLeg, phaseB, type PhaseBDeps, type PhaseBResult } from "../lib/launch-flow.js";
 import { commandWorks, tailnetIpOf, tailscaleCommand, MAC_APP_TAILSCALE } from "../lib/local-tailscale.js";
 import { makeProgressRenderer, renderStopped } from "./output.js";
 
@@ -68,10 +68,10 @@ function parseArgs(argv: string[]): Args {
  * credential the launchpad does not hold, so the skill asks the person about
  * them, and steps 2 and 3 prove them on the real node.
  */
-function preflight(spec: ServerSpec): void {
+function preflight(spec: ServerSpec, keys: readonly string[]): void {
     const problems: string[] = [];
     try {
-        requireEnvFile(envPath(spec.name, repoRoot));
+        requireEnvFile(envPath(spec.name, repoRoot), keys);
     } catch (err) {
         problems.push((err as Error).message);
     }
@@ -109,9 +109,12 @@ function realDeps(hcloudToken: string): PhaseBDeps {
 
 async function launch(args: Args, onProgress: OnProgress, markServerMayExist: () => void): Promise<PhaseBResult> {
     const spec = await step(onProgress, `Reading servers/${args.server}.yaml`, () => loadSpec(args.server, repoRoot));
-    await step(onProgress, `Checking this computer and .env.${spec.name}`, () => preflight(spec));
+    // A resume runs no `pulumi up`, so it never reads the auth key, which is
+    // spent once the server has joined and may have been deleted.
+    const keys = args.resume ? SECRETS_AFTER_LAUNCH : REQUIRED_SECRETS;
+    await step(onProgress, `Checking this computer and .env.${spec.name}`, () => preflight(spec, keys));
 
-    const secrets = secretsForChild(envPath(spec.name, repoRoot));
+    const secrets = secretsForChild(envPath(spec.name, repoRoot), keys);
     const ctx: PulumiContext = { repoRoot, server: spec.name, secrets };
     const deps = realDeps(secrets.HCLOUD_TOKEN);
     const flags = { adminCreated: args.adminCreated, twoFactorOn: args.twoFactorOn };
@@ -141,11 +144,16 @@ async function launch(args: Args, onProgress: OnProgress, markServerMayExist: ()
     const serverId = Number(stackOutput(ctx, "serverId"));
 
     // On a resume the node is looked up on the tailnet, so port 22 may already
-    // be closed. Otherwise, and when this computer cannot find the node, leg
-    // one: the public IP with the key Pulumi made.
-    const tailnetIp = args.resume ? tailnetIpOf(spec.name) : undefined;
-    if (tailnetIp) {
-        return phaseB({ spec, publicIp, serverId, firstLeg: { host: tailnetIp, user: "root" }, ...flags }, deps, onProgress);
+    // be closed; Phase B then checks that the machine it found is this server.
+    // Otherwise leg one: the public IP with the key Pulumi made.
+    const first = await step(
+        onProgress,
+        "Choosing how to reach the server",
+        () => chooseFirstLeg(args.resume, spec.name, publicIp, { tailnetIpOf, probePort }),
+        (l) => (l.kind === "tailnet" ? `over the tailnet at ${l.host}` : `over port 22 at ${publicIp}`),
+    );
+    if (first.kind === "tailnet") {
+        return phaseB({ spec, publicIp, serverId, firstLeg: { host: first.host, user: "root" }, ...flags }, deps, onProgress);
     }
     const privateKey = stackOutput(ctx, "privateKey", true);
     return withStagedKey(privateKey, (keyPath) => {

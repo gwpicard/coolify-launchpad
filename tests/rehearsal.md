@@ -80,6 +80,14 @@ checked on every run, because the services behind them change without notice.
   session closes, and the node stops answering), destroys the server, the SSH key
   and the firewall, removes the stack and the two record files, and keeps
   `.env.<name>`.
+- The node's identity check passes on the real server: the metadata service at
+  `169.254.169.254/hetzner/v1/metadata/instance-id` answers with the stack's
+  server id, and `api.ipify.org` from the box gives the stack's public IP.
+- The probe covers the public IPv4 address only. Hetzner's firewall also guards
+  the server's IPv6 address, and whether 22, 3000, 8000, 6001 and 6002 read
+  closed over IPv6 is checked by hand from a machine with IPv6, off the tailnet,
+  until the probe learns it. A probe from a machine without IPv6 would read every
+  port closed and prove nothing, which is why it is not automatic yet.
 - No token value appears anywhere in either session's transcript.
 
 ## Before the first real run

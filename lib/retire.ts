@@ -1,6 +1,7 @@
 import { step, skipped, type OnProgress } from "./progress.js";
 import type { Remote, SshTarget } from "./ssh.js";
 import { FIREWALL_NAME, type HetznerApi } from "./hetzner-firewall.js";
+import { identityProblems, NODE_IDENTITY_PROBE, readNodeIdentity } from "./phase-b.js";
 
 /**
  * /retire-server: destroy a server the launchpad made, after the person has
@@ -139,13 +140,29 @@ export async function retireServer(name: string, deps: RetireDeps, onProgress?: 
         throw new Error(`What was typed ("${typed.trim()}") is not ${name}. Nothing was destroyed.`);
     }
 
+    // The tailnet machine is found by name, and a stale machine of the same
+    // name may still be there. Only a node that proves it is the stack's live
+    // server is logged out; any other is left for the console step.
     let loggedOut = false;
-    const tailnetIp = deps.tailnetIpOf(name);
-    if (!tailnetIp) {
-        skipped(onProgress, "Logging the node out of the tailnet", `this computer cannot find ${name} on the tailnet`);
+    const logoutStep = "Logging the node out of the tailnet";
+    const tailnetIp = owned.live ? deps.tailnetIpOf(name) : undefined;
+    if (!owned.live) {
+        skipped(onProgress, logoutStep, "the stack has no live server on Hetzner, so no tailnet machine is known to be its");
+    } else if (!tailnetIp) {
+        skipped(onProgress, logoutStep, `this computer cannot find ${name} on the tailnet`);
     } else {
-        loggedOut = await step(onProgress, "Logging the node out of the tailnet", async () => {
-            const box = deps.remote({ host: tailnetIp, user: "root" });
+        const box = deps.remote({ host: tailnetIp, user: "root" });
+        const notThisServer =
+            owned.publicIp && owned.serverId !== undefined
+                ? identityProblems(readNodeIdentity(box.probe(NODE_IDENTITY_PROBE, 60_000).stdout), {
+                    name,
+                    publicIp: owned.publicIp,
+                    serverId: owned.serverId,
+                })
+                : ["the stack does not record the server's public IP and id, so the node cannot be matched to it"];
+        if (notThisServer.length > 0) {
+            skipped(onProgress, logoutStep, `left alone: ${notThisServer[0]}`);
+        } else loggedOut = await step(onProgress, logoutStep, async () => {
             const sent = box.probe(LOGOUT_COMMAND, 30_000);
             if (!sent.ok) return false;
             const waitMs = deps.logoutWaitMs ?? 60_000;

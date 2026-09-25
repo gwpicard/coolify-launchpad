@@ -3,6 +3,8 @@ import type { ServerSpec } from "./spec.js";
 import type { Remote, SshTarget } from "./ssh.js";
 import {
     adminInstruction,
+    checkNodeIdentity,
+    REGISTER_PROBE,
     installSkills,
     readBox,
     toolingProblems,
@@ -72,6 +74,40 @@ export function twoFactorFinding(server: string): string {
     );
 }
 
+export function registrationOpenFinding(server: string): string {
+    return (
+        "Coolify's /register page still answers 200. In internet mode port 8000 would then let anyone create an " +
+        "account, so the launch will not open it. Turn off registration in Coolify's settings, then run: " +
+        `npm run launch -- --server ${server} --resume --admin-created --two-factor-on`
+    );
+}
+
+export type FirstLeg = { kind: "tailnet"; host: string } | { kind: "public" };
+
+/**
+ * Where Phase B starts. A first launch uses the public IP with the key, since
+ * port 22 is open. A resume looks for the node on the tailnet first. When it
+ * finds none, it falls back to the public IP only if port 22 still answers,
+ * because once the lane firewall is on, the fallback would wait 20 minutes
+ * for nothing.
+ */
+export async function chooseFirstLeg(
+    resume: boolean,
+    name: string,
+    publicIp: string,
+    look: { tailnetIpOf(name: string): string | undefined; probePort(host: string, port: number): Promise<PortState> },
+): Promise<FirstLeg> {
+    if (!resume) return { kind: "public" };
+    const ip = look.tailnetIpOf(name);
+    if (ip) return { kind: "tailnet", host: ip };
+    if ((await look.probePort(publicIp, 22)) === "open") return { kind: "public" };
+    throw new Error(
+        `This computer cannot find ${name} on the tailnet, and port 22 on ${publicIp} is closed, so the lane ` +
+        "firewall is already on and there is no other way in. Check that this computer is signed in to the tailnet " +
+        `(tailscale status) and that the machine is still named ${name} in the Tailscale console, then resume again.`,
+    );
+}
+
 export async function phaseB(input: PhaseBInput, deps: PhaseBDeps, onProgress?: OnProgress): Promise<PhaseBResult> {
     const { spec } = input;
     const t = deps.timing ?? {};
@@ -89,6 +125,12 @@ export async function phaseB(input: PhaseBInput, deps: PhaseBDeps, onProgress?: 
         "Verifying the tailnet node",
         () => deps.verifyTailnet(input.firstLeg, spec.name),
         (r) => `${r.dnsName}, ${r.tailnetIp}`,
+    );
+    await step(
+        onProgress,
+        "Checking that the node is this Hetzner server",
+        () => checkNodeIdentity(deps.remote(input.firstLeg), { name: spec.name, publicIp: input.publicIp, serverId: input.serverId }),
+        (id) => `public IP ${id.publicIp}${id.instanceId ? `, server ${id.instanceId}` : ""}`,
     );
     const leg2 = await step(onProgress, "Proving the SSH grant from this computer", () => deps.proveSshGrant(tailnet.tailnetIp));
     const box = deps.remote(leg2);
@@ -131,6 +173,16 @@ export async function phaseB(input: PhaseBInput, deps: PhaseBDeps, onProgress?: 
         return f;
     }, (f) => (spec.install_tooling ? `Node ${f.nodeVersion}` : undefined));
 
+    if (spec.dashboard === "internet" && adminCheck === "confirmed-by-you") {
+        // --admin-created skipped the wait. In internet mode 8000 is about to
+        // open to everyone, so an open registration page would hand the
+        // server's next account to anybody. Look once more, and refuse.
+        await step(onProgress, "Checking that Coolify's registration is closed", () => {
+            const code = box.probe(REGISTER_PROBE, 30_000).stdout.trim();
+            if (code === "200") throw new Error(registrationOpenFinding(spec.name));
+            return code;
+        }, (code) => `/register answers ${code || "nothing"}`);
+    }
     if (spec.dashboard === "internet" && !input.twoFactorOn) {
         await step(onProgress, "Checking that two-factor authentication is on", () => {
             throw new Error(twoFactorFinding(spec.name));

@@ -16,7 +16,7 @@ import { createInterface } from "node:readline/promises";
 import { basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { envPath, loadSpec, specPath } from "../lib/spec.js";
-import { secretsForChild } from "../lib/env.js";
+import { SECRETS_AFTER_LAUNCH, secretsForChild } from "../lib/env.js";
 import { runPulumi, stackExists, type PulumiContext } from "../lib/pulumi.js";
 import { remote } from "../lib/ssh.js";
 import { HetznerApi } from "../lib/hetzner-firewall.js";
@@ -80,7 +80,7 @@ async function main(): Promise<void> {
     try {
         const spec = loadSpec(args.server, repoRoot);
         const env = envPath(spec.name, repoRoot);
-        const secrets = secretsForChild(env);
+        const secrets = secretsForChild(env, SECRETS_AFTER_LAUNCH);
         const ctx: PulumiContext = { repoRoot, server: spec.name, secrets };
         const result = await retireServer(spec.name, {
             stackExists: () => stackExists(ctx),

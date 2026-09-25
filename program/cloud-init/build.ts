@@ -17,9 +17,11 @@ const snippetsDir = new URL("./snippets/", import.meta.url);
  * The sections of Phase A, in the order they run. `tooling.sh` is there only
  * when the spec asks for the server-side tooling. That answer is fixed before
  * the server exists and never changes, which is what lets it sit in user-data.
+ * It runs after Coolify and cannot stop the script, so a failed Node install
+ * never costs the server its Coolify.
  */
 export function sectionsFor(installTooling: boolean): string[] {
-    return ["base.sh", "tailscale.sh", ...(installTooling ? ["tooling.sh"] : []), "coolify.sh", "sentinel.sh"];
+    return ["base.sh", "tailscale.sh", "coolify.sh", ...(installTooling ? ["tooling.sh"] : []), "sentinel.sh"];
 }
 
 function snippet(name: string): string {

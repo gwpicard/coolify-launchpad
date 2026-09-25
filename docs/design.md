@@ -73,12 +73,30 @@ labels `purpose=coolify` and `server=<name>`. The live Hetzner server of that
 name must carry the same labels and the id the stack holds. Anything else is
 refused with nothing changed. The typed name comes from a prompt in a terminal,
 or from `--confirm <typed name>`, which is how the skill passes on what the
-person typed. Without either it destroys nothing. Logout drops the SSH session
+person typed. Without either it destroys nothing. The node is logged out only
+when the stack's server is live on Hetzner and the tailnet machine of that name
+proves it is that server (see "Which machine is this" below); a stale machine of
+the same name is left for the console step. Logout drops the SSH session
 it runs in, so it is started detached, and the retire then waits up to a minute
 for the node to stop answering. A node it cannot find, or one that still
 answers, does not stop the retire, because the console step covers it. Last, it
 removes `servers/<name>.yaml` and `servers/<name>.block.txt` and keeps
 `.env.<name>`, which holds the person's own Hetzner token and passphrase.
+
+A resume, the check and the retire need only `HCLOUD_TOKEN` and
+`PULUMI_CONFIG_PASSPHRASE`. None of them runs `pulumi up`, so the auth key,
+which is spent once the server has joined, may have been deleted.
+
+### Which machine is this
+
+The launchpad finds a server on the tailnet by name, with `tailscale ip -4
+<name>`, and an older machine of the same name can still be there. So before it
+trusts a node, it asks the node for its Hetzner instance id, from the metadata
+service at `169.254.169.254/hetzner/v1/metadata/instance-id`, and for the public
+address it leaves from. The address must equal the stack's public IP. The
+instance id must equal the stack's server id whenever the metadata service
+answers. Phase B checks this right after step 2, the check reads nothing more
+from a machine that fails it, and the retire does not log it out.
 
 There is no fourth command. Reconfiguring a running server is coolify-devops's job.
 
@@ -194,13 +212,7 @@ The sections, in order:
    decoded into a mode 600 file under `/run` and passed as
    `--auth-key=file:<path>`, so it never appears in the process list; the file is
    removed afterwards, and a `trap` removes it if `tailscale up` fails.
-3. `tooling.sh` installs Node 22 from NodeSource and Claude Code with `npm install -g
-   @anthropic-ai/claude-code`. It is included only when question 5 was yes. It
-   still belongs in user-data because it is decided before creation and never
-   changes. The NodeSource setup script is fetched with `curl -4` and then run,
-   and `npm` runs with `--dns-result-order=ipv4first`, for the same dead IPv6
-   route as the rest of Phase A.
-4. `coolify.sh` runs Coolify's installer with a positional version argument. That
+3. `coolify.sh` runs Coolify's installer with a positional version argument. That
    the installer accepts one, and that it requires root, are to be confirmed in
    the first rehearsal; the version is pinned once they are. Until then
    `COOLIFY_VERSION` in `program/cloud-init/build.ts` is unset and the installer
@@ -209,6 +221,15 @@ The sections, in order:
    would put a password in user-data, which any process on the box can read from
    the metadata service. The admin is registered over the tailnet in Phase B, as
    coolify-devops's own runbook does it.
+4. `tooling.sh` installs Node 22 from NodeSource and Claude Code with `npm install -g
+   @anthropic-ai/claude-code`. It is included only when question 5 was yes. It
+   still belongs in user-data because it is decided before creation and never
+   changes. The NodeSource setup script is fetched with `curl -4` and then run,
+   and `npm` runs with `--dns-result-order=ipv4first`, for the same dead IPv6
+   route as the rest of Phase A. It runs after Coolify, and a failure in it is
+   printed but does not stop the script: its commands run in a subshell with
+   `set -e` of its own while the outer `set -e` is paused. A box with Coolify and
+   no Node is still worth handing over, and Phase B step 6 names what is missing.
 5. A sentinel: `install -d /var/lib/coolify-launchpad && touch
    /var/lib/coolify-launchpad/phase-a-done`. Phase B polls this file and
    `cloud-init status`, and fails early when that status reports `error`.
@@ -349,7 +370,13 @@ Each step is a progress event:
 `--resume` skips `pulumi up` and re-runs Phase B from step 1. It asks this
 computer's Tailscale for the node's address with `tailscale ip -4 <name>`, and
 when it finds one, steps 1 and 2 run over the second leg, so a closed port 22
-does not matter. When it finds none, it falls back to the first leg. Every step
+does not matter. When it finds none, it falls back to the first leg only if
+port 22 still answers. Once the lane firewall is on, that fallback would wait 20
+minutes for nothing, so the resume stops at once and says to check that this
+computer is on the tailnet and the machine still carries the server's name.
+Either way, the node must pass the identity check before anything else runs.
+In `internet` mode a resume with `--admin-created` looks at `/register` once
+more and refuses to open 8000 while it still answers 200. Every step
 is idempotent: the env file is never overwritten, the skills install is skipped
 when `/root/skills-lock.json` exists, and `set_rules` replaces the whole rule set
 each time.

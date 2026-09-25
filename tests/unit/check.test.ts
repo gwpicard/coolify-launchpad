@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkServer, renderCheck, type CheckDeps } from "../../lib/check.js";
-import { BOX_FACTS_PROBE } from "../../lib/phase-b.js";
+import { BOX_FACTS_PROBE, NODE_IDENTITY_PROBE } from "../../lib/phase-b.js";
 import { laneRules } from "../../lib/hetzner-firewall.js";
 import type { ServerSpec } from "../../lib/spec.js";
 import { boxFactsOutput, fakeHetzner, fakeRemote, GITHUB_META, launchFirewall } from "./helpers/stand-ins.js";
@@ -19,14 +19,15 @@ const STATUS = JSON.stringify({
 });
 
 /** The commands /check-server may send to the box. Each only reads. */
-const READ_ONLY = new Set(["true", "tailscale status --json", "tailscale debug prefs", BOX_FACTS_PROBE]);
+const READ_ONLY = new Set(["true", NODE_IDENTITY_PROBE, "tailscale status --json", "tailscale debug prefs", BOX_FACTS_PROBE]);
 
-function deps(over: { rules?: ReturnType<typeof laneRules>; box?: string; tailnetIp?: string | null; probe8000?: "open" | "closed"; grant?: boolean } = {}) {
+function deps(over: { rules?: ReturnType<typeof laneRules>; box?: string; tailnetIp?: string | null; probe8000?: "open" | "closed"; grant?: boolean; identity?: string } = {}) {
     const fw = launchFirewall("alpha");
     fw.rules = over.rules ?? laneRules(spec, GITHUB_META.hooks);
     const hetzner = fakeHetzner({ firewalls: [fw], servers: [] });
     const box = fakeRemote((c) => {
         if (c === "true") return over.grant === false ? { ok: false, status: 255, stderr: "tailnet policy does not permit you to SSH" } : {};
+        if (c === NODE_IDENTITY_PROBE) return { stdout: over.identity ?? "instance_id=3001\npublic_ip=203.0.113.10\n" };
         if (c === "tailscale status --json") return { stdout: STATUS };
         if (c === "tailscale debug prefs") return { stdout: JSON.stringify({ RunSSH: true }) };
         if (c === BOX_FACTS_PROBE) return { stdout: over.box ?? boxFactsOutput() };
@@ -92,4 +93,19 @@ test("without the tooling, missing Node and Claude Code are to-dos rather than f
     assert.ok(without.rows.some((x) => x.status === "to do" && x.what === "Node"));
     const withTooling = await checkServer(spec, deps({ box: boxFactsOutput({ node: "", claude: "no", skills: "no" }) }).d);
     assert.equal(withTooling.broken, 3);
+});
+
+test("a stale machine of the same name is reported, and nothing more is read from it", async () => {
+    const { d, box } = deps({ identity: "instance_id=4242\npublic_ip=198.51.100.4\n" });
+    let asked = false;
+    d.httpStatus = async () => {
+        asked = true;
+        return 302;
+    };
+    const r = await checkServer(spec, d);
+    assert.equal(r.rows[0].status, "broken");
+    assert.equal(r.rows[0].what, "The tailnet machine is this server");
+    assert.ok(r.rows.some((x) => x.status === "not checked" && /not this server/.test(x.detail)));
+    assert.ok(!asked, "Coolify was asked on the other machine");
+    assert.deepEqual(box.commands, ["true", NODE_IDENTITY_PROBE]);
 });

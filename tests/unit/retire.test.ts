@@ -3,6 +3,7 @@
 // before the server goes, and hands over the console step.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { NODE_IDENTITY_PROBE } from "../../lib/phase-b.js";
 import { LOGOUT_COMMAND, retireServer, renderRetired, stackOwnership, type RetireDeps } from "../../lib/retire.js";
 import type { ProgressEvent } from "../../lib/progress.js";
 import { fakeHetzner, fakeRemote, launchFirewall, launchServer } from "./helpers/stand-ins.js";
@@ -50,7 +51,7 @@ interface Trace {
     calls: ReturnType<typeof fakeHetzner>["calls"];
 }
 
-function trace(over: Partial<RetireDeps> & { typed?: string; servers?: ReturnType<typeof launchServer>[]; firewalls?: ReturnType<typeof launchFirewall>[]; answersAfterLogout?: boolean } = {}): Trace {
+function trace(over: Partial<RetireDeps> & { typed?: string; servers?: ReturnType<typeof launchServer>[]; firewalls?: ReturnType<typeof launchFirewall>[]; answersAfterLogout?: boolean; identity?: string } = {}): Trace {
     const did: string[] = [];
     let loggedOut = false;
     const box = fakeRemote((c) => {
@@ -59,6 +60,7 @@ function trace(over: Partial<RetireDeps> & { typed?: string; servers?: ReturnTyp
             did.push("logout");
             return { stdout: "logout=scheduled\n" };
         }
+        if (c === NODE_IDENTITY_PROBE) return { stdout: over.identity ?? "instance_id=3001\npublic_ip=203.0.113.10\n" };
         if (c === "true") return loggedOut && !over.answersAfterLogout ? { ok: false, status: 255 } : {};
         throw new Error(`unexpected command ${c}`);
     });
@@ -128,8 +130,14 @@ test("a server already gone from Hetzner, or a node this computer cannot find, s
     const r = await retireServer("alpha", t.deps, (e) => events.push(e));
     assert.deepEqual(t.did.slice(1), ["destroy", "stack rm", "records"]);
     assert.equal(r.loggedOut, false);
-    assert.ok(events.some((e) => e.status === "skipped" && /cannot find alpha on the tailnet/.test(e.detail ?? "")));
+    assert.ok(events.some((e) => e.status === "skipped" && /no live server on Hetzner/.test(e.detail ?? "")));
     assert.ok(events.some((e) => e.status === "done" && /already gone from Hetzner/.test(e.detail ?? "")));
+
+    const lost = trace({ tailnetIpOf: () => undefined });
+    const lostEvents: ProgressEvent[] = [];
+    await retireServer("alpha", lost.deps, (e) => lostEvents.push(e));
+    assert.deepEqual(lost.did.slice(1), ["destroy", "stack rm", "records"]);
+    assert.ok(lostEvents.some((e) => e.status === "skipped" && /cannot find alpha on the tailnet/.test(e.detail ?? "")));
 });
 
 test("a node that still answers after logout does not stop the retire, and the console step still comes", async () => {
@@ -142,4 +150,30 @@ test("a node that still answers after logout does not stop the retire, and the c
 
 test("logout runs detached, because it drops the session it runs in", () => {
     assert.match(LOGOUT_COMMAND, /^setsid nohup sh -c 'sleep 2; tailscale logout'/);
+});
+
+test("a stale machine of the same name is never logged out, and the retire of the real server goes on", async () => {
+    for (const identity of ["instance_id=4242\npublic_ip=203.0.113.10\n", "instance_id=3001\npublic_ip=198.51.100.4\n", "public_ip=\n"]) {
+        const t = trace({ identity });
+        const events: ProgressEvent[] = [];
+        const r = await retireServer("alpha", t.deps, (e) => events.push(e));
+        assert.ok(!t.box.commands.includes(LOGOUT_COMMAND), `logged out with ${JSON.stringify(identity)}`);
+        assert.equal(r.loggedOut, false);
+        assert.deepEqual(t.did.slice(1), ["destroy", "stack rm", "records"]);
+        assert.ok(events.some((e) => e.status === "skipped" && /^left alone:/.test(e.detail ?? "")));
+    }
+});
+
+test("with no live server on Hetzner, no tailnet machine is touched at all", async () => {
+    let looked = false;
+    const t = trace({
+        servers: [],
+        tailnetIpOf: () => {
+            looked = true;
+            return "100.64.0.7";
+        },
+    });
+    await retireServer("alpha", t.deps);
+    assert.equal(looked, false);
+    assert.deepEqual(t.box.commands, []);
 });

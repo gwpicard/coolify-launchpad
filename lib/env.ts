@@ -9,6 +9,13 @@ export const REQUIRED_SECRETS = ["HCLOUD_TOKEN", "PULUMI_CONFIG_PASSPHRASE", "TA
 export type SecretName = (typeof REQUIRED_SECRETS)[number];
 
 /**
+ * What a resume, the check and the retire need: no `pulumi up` runs, so the
+ * auth key is never read. It is one-off and spent once the server has joined,
+ * so the person may have deleted it.
+ */
+export const SECRETS_AFTER_LAUNCH = ["HCLOUD_TOKEN", "PULUMI_CONFIG_PASSPHRASE"] as const;
+
+/**
  * Parse a dotenv-style file (`KEY=value`, one per line) without touching
  * process.env. Supports `KEY=value`, `KEY="quoted"`, `KEY='quoted'`, `#`
  * comments and a trailing `# comment` after an unquoted value. No `export`,

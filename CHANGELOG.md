@@ -41,11 +41,20 @@ refuses a version that does not match every skill.
   tooling, replaces the firewall's rules with the lane's (22 closes), probes the
   public IP, and prints the server block and a list of what is still yours to do,
   also written to `servers/<name>.block.txt`. Node 22 and Claude Code are
-  installed by cloud-init when the tooling is asked for.
+  installed by cloud-init, after Coolify, when the tooling is asked for, and a
+  failure there no longer stops Coolify's install.
 - `npm run launch -- --server <name> --resume` runs the second phase again, over
-  Tailscale SSH once port 22 has closed, and leaves the env file as it is. If
-  Coolify's registration page never closes, `--admin-created` says the account
-  exists. In `internet` mode nothing opens until `--two-factor-on`.
+  Tailscale SSH once port 22 has closed, and leaves the env file as it is. It
+  stops at once, rather than waiting, when it cannot find the node and 22 is
+  closed. If Coolify's registration page never closes, `--admin-created` says
+  the account exists, but in `internet` mode 8000 still stays shut while the page
+  answers. In `internet` mode nothing opens until `--two-factor-on`.
+- A machine found on the tailnet by name must prove it is the stack's server,
+  by its public IP and Hetzner instance id, before the launch goes on, the check
+  reads it, or the retire logs it out. A stale machine of the same name is left
+  alone.
+- A resume, the check and the retire no longer need `TAILSCALE_AUTH_KEY`, which
+  is spent after the launch.
 - `npm run check-server -- --server <name>` reads a server back without changing
   it and prints one table, broken things first, then the server block again.
 - `npm run retire -- --server <name>` refuses a server the launchpad did not

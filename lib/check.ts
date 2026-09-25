@@ -1,7 +1,7 @@
 import type { ServerSpec } from "./spec.js";
 import type { Remote, SshTarget } from "./ssh.js";
 import { checkTailnet } from "./tailnet.js";
-import { CHECK_RULE_FINDING, GRANT_ATTEMPT_TIMEOUT_MS, nodeMajor, readBox } from "./phase-b.js";
+import { CHECK_RULE_FINDING, GRANT_ATTEMPT_TIMEOUT_MS, identityProblems, NODE_IDENTITY_PROBE, nodeMajor, readBox, readNodeIdentity } from "./phase-b.js";
 import {
     describeProbe,
     describeRules,
@@ -106,10 +106,6 @@ export async function checkServer(spec: ServerSpec, deps: CheckDeps): Promise<Ch
     }
     add("ok", "The server on the tailnet", `${spec.name} is at ${tailnetIp}`);
 
-    const status = await deps.httpStatus(`http://${tailnetIp}:8000`);
-    if (status === undefined) add("broken", "Coolify over the tailnet", `http://${tailnetIp}:8000 gave no answer`);
-    else add("ok", "Coolify over the tailnet", `http://${tailnetIp}:8000 answers HTTP ${status}`);
-
     const box = deps.remote({ host: tailnetIp, user: "root" });
     const grant = box.probe("true", GRANT_ATTEMPT_TIMEOUT_MS);
     if (!grant.ok) {
@@ -122,6 +118,27 @@ export async function checkServer(spec: ServerSpec, deps: CheckDeps): Promise<Ch
         return finish(rows, deps.readBlock(spec.name));
     }
     add("ok", "Tailscale SSH from this computer", `root@${tailnetIp} with no key`);
+
+    // The machine was found by name. Nothing more is read from it until it
+    // has shown it is the stack's server, not a stale one of the same name.
+    const identityWhat = "The tailnet machine is this server";
+    if (!stack) {
+        add("not checked", identityWhat, "there is no stack to compare it with");
+        add("not checked", "Coolify, the node, the env file and the tools", "the machine could not be matched to the stack");
+        return finish(rows, deps.readBlock(spec.name));
+    }
+    const identity = readNodeIdentity(box.probe(NODE_IDENTITY_PROBE, 60_000).stdout);
+    const mismatch = identityProblems(identity, { name: spec.name, publicIp: stack.publicIp, serverId: stack.serverId });
+    if (mismatch.length > 0) {
+        for (const p of mismatch) add("broken", identityWhat, p);
+        add("not checked", "Coolify, the node, the env file and the tools", "the machine is not this server");
+        return finish(rows, deps.readBlock(spec.name));
+    }
+    add("ok", identityWhat, `public IP ${identity.publicIp}${identity.instanceId ? `, server ${identity.instanceId}` : ""}`);
+
+    const status = await deps.httpStatus(`http://${tailnetIp}:8000`);
+    if (status === undefined) add("broken", "Coolify over the tailnet", `http://${tailnetIp}:8000 gave no answer`);
+    else add("ok", "Coolify over the tailnet", `http://${tailnetIp}:8000 answers HTTP ${status}`);
 
     try {
         const node = checkTailnet(box.run("tailscale status --json"), box.run("tailscale debug prefs"), spec.name);

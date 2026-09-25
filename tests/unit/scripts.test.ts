@@ -36,6 +36,7 @@ const SSH = `#!/bin/sh
 for a; do last="$a"; done
 printf '%s\\n' "$last" | head -n 1 >> "$STAND_IN/ssh.log"
 case "$last" in
+  'echo "instance_id='*) echo instance_id=3001; echo public_ip=203.0.113.10 ;;
   setsid*) touch "$STAND_IN/logged-out"; echo logout=scheduled ;;
   true) if [ -f "$STAND_IN/logged-out" ]; then exit 255; fi ;;
   *) echo "stand-in ssh does not know this command" >&2; exit 1 ;;
@@ -71,7 +72,8 @@ function makeFolder(): Folder {
     writeFileSync(join(repo, "servers", "alpha.block.txt"), "Launched by coolify-launchpad\n(the saved block)\n");
     writeFileSync(
         join(repo, ".env.alpha"),
-        `HCLOUD_TOKEN=${MARKER_TOKEN}\nPULUMI_CONFIG_PASSPHRASE=marker-passphrase\nTAILSCALE_AUTH_KEY=marker-key\n`,
+        // No TAILSCALE_AUTH_KEY: it is spent after the launch, and neither script needs it.
+        `HCLOUD_TOKEN=${MARKER_TOKEN}\nPULUMI_CONFIG_PASSPHRASE=marker-passphrase\n`,
         { mode: 0o600 },
     );
     for (const [name, body] of [["pulumi", PULUMI], ["ssh", SSH], ["tailscale", TAILSCALE]] as const) {
@@ -153,7 +155,7 @@ test("npm run retire refuses a wrong name, then retires with the right one and k
         assert.deepEqual(order, ["destroy --yes --skip-preview --stack alpha --non-interactive", "stack rm alpha --yes --non-interactive"]);
         assert.ok(pulumi.every((l) => l.includes(`backend=file://${join(realpathSync(f.repo), ".pulumi")}`)), "pulumi ran against another backend");
         assert.ok(pulumi.every((l) => l.endsWith("token=set")));
-        assert.equal(log(f, "ssh.log")[0].startsWith("setsid nohup sh -c 'sleep 2; tailscale logout'"), true);
+        assert.ok(log(f, "ssh.log").some((l) => l.startsWith("setsid nohup sh -c 'sleep 2; tailscale logout'")), log(f, "ssh.log").join("\n"));
         assert.ok(!existsSync(join(f.repo, "servers", "alpha.yaml")));
         assert.ok(!existsSync(join(f.repo, "servers", "alpha.block.txt")));
         assert.ok(existsSync(join(f.repo, ".env.alpha")), "the env file was removed");

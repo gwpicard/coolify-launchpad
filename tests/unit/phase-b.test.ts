@@ -10,6 +10,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
     BOX_FACTS_PROBE,
+    identityProblems,
+    NODE_IDENTITY_PROBE,
+    readNodeIdentity,
     envFileScript,
     installSkills,
     readBoxFacts,
@@ -18,7 +21,7 @@ import {
     toolingProblems,
     waitForAdmin,
 } from "../../lib/phase-b.js";
-import { phaseB, twoFactorFinding, type PhaseBDeps, type PhaseBInput } from "../../lib/launch-flow.js";
+import { chooseFirstLeg, phaseB, registrationOpenFinding, twoFactorFinding, type PhaseBDeps, type PhaseBInput } from "../../lib/launch-flow.js";
 import { laneRules } from "../../lib/hetzner-firewall.js";
 import type { ProgressEvent } from "../../lib/progress.js";
 import type { ServerSpec } from "../../lib/spec.js";
@@ -143,13 +146,17 @@ interface World {
     hooksFetched: number;
 }
 
-function world(home: string, opts: { probe?: (port: number) => "open" | "closed"; hetznerFirewalls?: ReturnType<typeof launchFirewall>[] } = {}): World {
+function world(
+    home: string,
+    opts: { probe?: (port: number) => "open" | "closed"; hetznerFirewalls?: ReturnType<typeof launchFirewall>[]; identity?: string; register?: string } = {},
+): World {
     const hetzner = fakeHetzner({ firewalls: opts.hetznerFirewalls ?? [launchFirewall("alpha")], servers: [] });
     const written: string[] = [];
     const w = { events: [] as ProgressEvent[], calls: hetzner.calls, written, home, hooksFetched: 0 } as World;
     // The env file script is run for real against `home`; every other command gets the box as a launch leaves it.
     w.box = fakeRemote((c) => {
-        if (c === REGISTER_PROBE) return { stdout: "302" };
+        if (c === NODE_IDENTITY_PROBE) return { stdout: opts.identity ?? "instance_id=3001\npublic_ip=203.0.113.10\n" };
+        if (c === REGISTER_PROBE) return { stdout: opts.register ?? "302" };
         if (c.includes("coolify-devops.env") && c.startsWith("set -eu")) {
             const local = c.replaceAll("'/root/", `'${home}/`);
             return { stdout: runLocally(local) };
@@ -191,6 +198,7 @@ test("a launch in github mode with no public lane runs every step in order and e
         assert.deepEqual(done_, [
             "Waiting for cloud-init to finish and Coolify to answer (up to 20 minutes)",
             "Verifying the tailnet node",
+            "Checking that the node is this Hetzner server",
             "Proving the SSH grant from this computer",
             "Waiting for the Coolify admin account",
             "Writing /root/.config/coolify-devops.env",
@@ -286,4 +294,53 @@ test("--admin-created skips the wait and the block says the account was confirme
         assert.ok(!w.box.commands.includes(REGISTER_PROBE));
         assert.match(r.text, /confirmed by you, not verified/);
     });
+});
+
+test("a tailnet machine that is not the stack's server stops the launch before anything changes", async () => {
+    for (const identity of [
+        "instance_id=3001\npublic_ip=198.51.100.4\n",
+        "instance_id=4242\npublic_ip=203.0.113.10\n",
+        "instance_id=\npublic_ip=\n",
+    ]) {
+        await withHomeAsync(async (home) => {
+            const w = world(home, { identity });
+            await assert.rejects(phaseB(input({ firstLeg: { host: "100.64.0.7", user: "root" } }), w.deps), /cannot be shown to be this server|another machine/);
+            assert.ok(!w.box.commands.includes(REGISTER_PROBE), "it went on to the admin wait");
+            assert.ok(!w.calls.some((c) => c.method === "POST"), "it changed the firewall");
+            assert.ok(!existsSync(join(home, ".config")), "it wrote the env file");
+        });
+    }
+});
+
+test("the identity check reads the node's answer, and an instance id it cannot read is not held against it", () => {
+    const expected = { name: "alpha", publicIp: "203.0.113.10", serverId: 3001 };
+    assert.deepEqual(identityProblems(readNodeIdentity("instance_id=\npublic_ip=203.0.113.10\n"), expected), []);
+    assert.deepEqual(identityProblems(readNodeIdentity("instance_id=3001\npublic_ip=203.0.113.10\n"), expected), []);
+    assert.match(identityProblems(readNodeIdentity("public_ip=198.51.100.4\n"), expected)[0], /leaves from 198\.51\.100\.4/);
+    assert.match(NODE_IDENTITY_PROBE, /169\.254\.169\.254\/hetzner\/v1\/metadata\/instance-id/);
+});
+
+test("internet mode with --admin-created refuses to open 8000 while registration is still open", async () => {
+    await withHomeAsync(async (home) => {
+        const open = world(home, { register: "200" });
+        const internet = { ...spec, dashboard: "internet" as const };
+        await assert.rejects(phaseB(input({ spec: internet, adminCreated: true, twoFactorOn: true }), open.deps), (err: Error) => {
+            assert.equal(err.message, registrationOpenFinding("alpha"));
+            return true;
+        });
+        assert.ok(!open.calls.some((c) => c.method === "POST"), "8000 opened with registration open");
+        const closed = world(home, { register: "302", probe: (p) => (p === 8000 ? "open" : "closed") });
+        await phaseB(input({ spec: internet, adminCreated: true, twoFactorOn: true }), closed.deps);
+        assert.ok(closed.calls.some((c) => c.method === "POST"));
+    });
+});
+
+test("a resume goes over the tailnet, falls back to 22 only while it is open, and fails fast once it is closed", async () => {
+    const look = (ip: string | undefined, port22: "open" | "closed") => ({ tailnetIpOf: () => ip, probePort: async () => port22 });
+    assert.deepEqual(await chooseFirstLeg(false, "alpha", "203.0.113.10", look(undefined, "closed")), { kind: "public" });
+    assert.deepEqual(await chooseFirstLeg(true, "alpha", "203.0.113.10", look("100.64.0.7", "closed")), { kind: "tailnet", host: "100.64.0.7" });
+    assert.deepEqual(await chooseFirstLeg(true, "alpha", "203.0.113.10", look(undefined, "open")), { kind: "public" });
+    const started = Date.now();
+    await assert.rejects(chooseFirstLeg(true, "alpha", "203.0.113.10", look(undefined, "closed")), /port 22 on 203\.0\.113\.10 is closed/);
+    assert.ok(Date.now() - started < 1_000);
 });

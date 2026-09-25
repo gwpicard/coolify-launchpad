@@ -138,6 +138,73 @@ export async function proveSshGrant(
     return leg2;
 }
 
+// After step 2: the tailnet machine must be this Hetzner server.
+
+/**
+ * A machine is found on the tailnet by name, and a stale machine of the same
+ * name can still be there. So the node is asked who it is: its Hetzner
+ * instance id from the metadata service, and the public address it leaves
+ * from. Both are compared with the stack.
+ */
+export const NODE_IDENTITY_PROBE = [
+    `echo "instance_id=$(curl -s --max-time 5 http://169.254.169.254/hetzner/v1/metadata/instance-id 2>/dev/null)"`,
+    `echo "public_ip=$(curl -4 -s --max-time 10 https://api.ipify.org 2>/dev/null)"`,
+].join("\n");
+
+export interface NodeIdentity {
+    instanceId: string;
+    publicIp: string;
+}
+
+export function readNodeIdentity(stdout: string): NodeIdentity {
+    const kv = parseKeyValues(stdout);
+    return { instanceId: kv.get("instance_id") ?? "", publicIp: kv.get("public_ip") ?? "" };
+}
+
+export interface ExpectedNode {
+    name: string;
+    publicIp: string;
+    serverId: number;
+}
+
+/**
+ * The public address must equal the stack's. The instance id must too, when
+ * the metadata service gave one; it is the stronger proof, since Hetzner
+ * recycles addresses.
+ */
+export function identityProblems(id: NodeIdentity, expected: ExpectedNode): string[] {
+    const problems: string[] = [];
+    const other =
+        `It is another machine, probably an older one named ${expected.name} that is still on the tailnet. ` +
+        "Remove it in the Tailscale console under Machines, then try again.";
+    if (!id.publicIp) {
+        problems.push(
+            `The tailnet machine named ${expected.name} did not say which public address it leaves from, ` +
+            "so it cannot be shown to be this server.",
+        );
+    } else if (id.publicIp !== expected.publicIp) {
+        problems.push(
+            `The tailnet machine named ${expected.name} leaves from ${id.publicIp}, but this server's public IP is ` +
+            `${expected.publicIp}. ${other}`,
+        );
+    }
+    if (/^\d+$/.test(id.instanceId) && Number(id.instanceId) !== expected.serverId) {
+        problems.push(
+            `The tailnet machine named ${expected.name} is Hetzner server ${id.instanceId}, but the stack holds ` +
+            `${expected.serverId}. ${other}`,
+        );
+    }
+    return problems;
+}
+
+/** Ask the node who it is, and throw unless it is the expected server. */
+export function checkNodeIdentity(box: Remote, expected: ExpectedNode): NodeIdentity {
+    const id = readNodeIdentity(box.probe(NODE_IDENTITY_PROBE, 60_000).stdout);
+    const problems = identityProblems(id, expected);
+    if (problems.length > 0) throw new Error(problems.join(" "));
+    return id;
+}
+
 // Step 4: the admin account.
 
 /** Asked without -L: Coolify answers 200 while registration is open, and redirects once it closes. */
