@@ -5,14 +5,17 @@
   "description": "Rent a server, install Coolify, join the tailnet, lock the firewall, hand over. The missing link between AI Build Kit and coolify-devops. Clone this repository and type /launch-server in Claude Code.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/unit/*.test.mjs",
+    "launch": "tsx scripts/launch.ts",
+    "test": "node --import tsx --test tests/unit/*.test.mjs tests/unit/*.test.ts",
+    "typecheck": "tsc -p . --noEmit",
+    "preview:offline": "sh tests/offline-preview.sh",
     "validate:skills": "for s in skills/*/; do npx --yes skills-ref@latest validate \"$s\" || exit 1; done",
     "validate:versions": "node scripts/check-versions.mjs",
     "validate:adapters": "sh tools/build-adapters.sh --check",
     "validate:prose": "sh tools/validate.sh",
     "validate": "npm run validate:versions && npm run validate:adapters && npm run validate:prose && npm run validate:skills",
-    "check": "npm test && npm run validate",
-    "adapters": "sh tools/build-adapters.sh"
+    "adapters": "sh tools/build-adapters.sh",
+    "check": "npm test && npm run typecheck && npm run validate"
   },
   "engines": {
     "node": ">=20"
@@ -21,5 +24,17 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gwpicard/coolify-launchpad.git"
+  },
+  "dependencies": {
+    "@pulumi/hcloud": "^1.42.0",
+    "@pulumi/pulumi": "^3.264.0",
+    "@pulumi/tls": "^5.6.1",
+    "js-yaml": "^5.4.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
   }
 }
