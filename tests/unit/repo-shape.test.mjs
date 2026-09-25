@@ -10,6 +10,9 @@ const root = new URL('../..', import.meta.url).pathname;
 const must = [
   'README.md', 'AGENTS.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md', 'LICENSE',
   'docs/positioning.md', 'docs/server-model.md', 'docs/design.md', 'docs/sources.md', 'docs/maintaining.md',
+  'docs/before-you-launch.md',
+  'skills/launch-server/references/interview.md', 'skills/launch-server/references/preflight.md',
+  'skills/launch-server/references/server-block.md',
   'tests/rehearsal.md', 'servers/example.yaml', '.env.example',
   '.agents/maintainer-skills/humanizer/SKILL.md', '.agents/maintainer-skills/humanizer/LICENSE',
   'tests/lib/rule-shape.sh', 'tools/build-adapters.sh', 'tools/validate.sh',
