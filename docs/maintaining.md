@@ -83,7 +83,8 @@ entry. The steps, in order:
 
 1. Run the rehearsal in `tests/rehearsal.md` in full, and add its row to the
    record. A rehearsal that failed means there is no release until the cause is
-   folded back into the skill or document that should have known it.
+   folded back into the skill or document that should have known it. Release
+   0.1.0 shipped on a partial rehearsal; `tests/rehearsal.md` lists the gaps.
 2. Bump `version` in `package.json` and in every skill's `metadata.version`. Run
    `npm run validate`; it lists anything out of sync.
 3. Write the `## <version>, <date>` entry at the top of `CHANGELOG.md` in plain

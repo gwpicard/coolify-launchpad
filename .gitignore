@@ -9,5 +9,4 @@ Pulumi.*.yaml
 !.env.example
 servers/*
 !servers/example.yaml
-!servers/.gitkeep
 .DS_Store

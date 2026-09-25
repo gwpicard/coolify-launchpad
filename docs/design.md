@@ -3,9 +3,9 @@
 This is the standing description of what the launchpad does, in the order it does
 it, and why each step sits where it sits. The three-way story and the block formats
 are in [positioning.md](positioning.md). The firewall rules, the probe and the
-troubleshooting table are in [server-model.md](server-model.md). Facts marked "to
-be confirmed in the first rehearsal" are assumptions the code leans on until
-`tests/rehearsal.md` has proved them.
+troubleshooting table are in [server-model.md](server-model.md). Facts marked
+"not yet confirmed" are assumptions the code leans on that no real run has
+proved; `tests/rehearsal.md` records which ones the runs so far did prove.
 
 ## The form of the tool
 
@@ -218,10 +218,10 @@ The sections, in order:
    `--auth-key=file:<path>`, so it never appears in the process list; the file is
    removed afterwards, and a `trap` removes it if `tailscale up` fails.
 3. `coolify.sh` runs Coolify's installer with a positional version argument. That
-   the installer accepts one, and that it requires root, are to be confirmed in
-   the first rehearsal; the version is pinned once they are. Until then
-   `COOLIFY_VERSION` in `program/cloud-init/build.ts` is unset and the installer
-   installs its current release. The admin account is
+   the installer accepts one, and that it requires root, are not yet confirmed;
+   the version is pinned once they are. The first real run left
+   `COOLIFY_VERSION` in `program/cloud-init/build.ts` unset, and the installer
+   installed its current release, 4.3.23. The admin account is
    not pre-created with the installer's `ROOT_USER_*` variables, because that
    would put a password in user-data, which any process on the box can read from
    the metadata service. The admin is registered over the tailnet in Phase B, as
@@ -309,7 +309,8 @@ Each step is a progress event:
    stop and give the console link. The comment on `.MagicDNSSuffix` in
    Tailscale's source says it is filled in whether or not MagicDNS is on, so the
    check also reads `.CurrentTailnet.MagicDNSEnabled` when the node reports it.
-   The first rehearsal confirms which of the two a real node gives. It also
+   Which of the two a real node gives is not yet confirmed: the first real run
+   passed this check without recording which field it read. The step also
    checks that the node's DNS name starts with the server name. If an older
    machine of the same name is still in the tailnet, the new one joins as
    `<name>-1`, and the step stops and says which machine to remove.
@@ -330,8 +331,8 @@ Each step is a progress event:
    yet. Then turn on two-factor authentication under Settings, General. Poll
    `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/register`
    without `-L` until it stops answering 200; Coolify closes registration after
-   the first user and redirects. That behaviour is to be confirmed in the first
-   rehearsal. The wait lasts 20 minutes. If it runs out, the launch stops and
+   the first user and redirects. The first real run saw it answer 302 once the
+   account existed. The wait lasts 20 minutes. If it runs out, the launch stops and
    names `--resume --admin-created`, which is how the person confirms the account
    instead, and the block then says "confirmed by you, not verified". In
    `internet` mode the person must also type `2fa on`, which the skill passes on
