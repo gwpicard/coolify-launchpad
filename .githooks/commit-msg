@@ -1,0 +1,72 @@
+#!/usr/bin/env sh
+# commit-msg: take the AI attribution lines back out of a commit message.
+#
+# A coding agent appends two kinds of line to a message it writes: a co-author
+# trailer naming the model, and a link back to the session that produced the
+# work. The link is the one that matters. It is a personal address on the
+# agent vendor's site, anyone who reads this public repository can open it, and
+# nothing in a commit message needs it.
+#
+# Each coding agent has a setting that turns both off, and that setting is the
+# first defence. It is not the last one. A setting lives outside the
+# repository, so it protects the machine it was set on and no other, and a
+# session can be told to override it. This hook lives in the repository and
+# applies to every commit, whoever makes it.
+#
+# It removes the attribution lines and leaves everything else alone, including
+# prose about Claude, Cursor or Gemini. The launchpad is built with those tools
+# and its skills name them, so a hook that struck out the word would leave the
+# repository unable to describe itself.
+#
+# Git runs a hook from the folder named by core.hooksPath. That is a local
+# setting and a clone does not carry it, so docs/maintaining.md gives the one
+# command that points a fresh clone here.
+#
+# awk rather than node, because a hook that cannot run lets the line through,
+# and awk is present wherever git is.
+set -eu
+
+msg=$1
+
+awk '
+{ line[NR] = $0 }
+END {
+  kept = 0
+  for (i = 1; i <= NR; i++) {
+    low = tolower(line[i])
+    if (low ~ /^[ \t]*co-authored-by:[ \t]*claude/) continue
+    if (low ~ /^[ \t]*claude-session:/) continue
+    if (low ~ /generated (with|by) \[claude code\]/) continue
+    if (index(low, "claude.ai/code/session_")) continue
+    if (index(low, "noreply@anthropic.com")) continue
+    out[++kept] = line[i]
+  }
+
+  # Removing a trailer block strands what sat above it: the blank lines that
+  # separated it, and the row of dashes a squash merge writes before it. Take
+  # those off too, or every rewritten message ends in punctuation with nothing
+  # after it.
+  while (kept > 0) {
+    tail = out[kept]
+    gsub(/[ \t]/, "", tail)
+    if (tail == "") { kept--; continue }
+    if (tail ~ /^(-{3,}|_{3,}|\*{3,})$/) { kept--; break }
+    break
+  }
+
+  blank = 0
+  for (i = 1; i <= kept; i++) {
+    body = out[i]
+    gsub(/[ \t]/, "", body)
+    if (body == "") {
+      blank++
+      if (blank > 1) continue
+    } else {
+      blank = 0
+    }
+    print out[i]
+  }
+}
+' "$msg" > "$msg.scrubbed"
+
+mv "$msg.scrubbed" "$msg"

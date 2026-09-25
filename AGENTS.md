@@ -46,7 +46,8 @@ docs/
   maintaining.md          writing rules, one owner per concept, release steps
 tests/
   unit/                   Node's test runner: cloud-init assembly, spec, env check, tailnet checks, harness,
-                          the lane firewall, the blocks, Phase B against stand-ins, check and retire
+                          the lane firewall, the blocks, Phase B against stand-ins, check and retire,
+                          and the commit-msg hook
   unit/helpers/           stand-ins for the Hetzner API, GitHub's meta answer and a shell on the server
   fixtures/               a saved copy of GitHub's meta answer, for the github rule
   offline-preview.sh      pulumi preview with stand-in secrets and local state; reaches no Hetzner, Tailscale or Pulumi service
@@ -56,6 +57,7 @@ tests/
   lib/rule-shape.sh       the guard library, copied from AI Build Kit
   rehearsal.md            what a release rehearsal does, and the record of runs
 tools/                    build-adapters.sh and validate.sh
+.githooks/commit-msg      takes AI attribution lines out of a commit message; see Attribution
 .github/workflows/        check.yml: what CI runs on every push and pull request
 ```
 
@@ -194,3 +196,24 @@ changelog. Never in a tracked file. A number in a document is a pointer the
 reader cannot follow, and once the material moves it points at something
 unrelated. Say the thing instead. Where a comment needs the reason behind a rule,
 write the reason.
+
+## Attribution
+
+A commit and a pull request carry the name of the person who made them and
+nothing else. No co-author trailer naming a model, and no link back to the
+session the work came from. The session link matters most. It is a personal
+address on the agent vendor's site, and anyone reading this public repository
+can open it.
+
+Each coding agent has a setting that stops these lines being written, and that
+setting is the first defence. `.githooks/commit-msg` takes them out of a message
+anyway, for a session that overrides the setting or a clone that never had it.
+`tools/validate.sh` refuses a tracked file that carries one, because a message
+pasted into a document is not a commit and the hook never sees it.
+
+Git only runs the hook once a clone points at it, and a clone does not carry
+that setting. Run the command in [docs/maintaining.md](docs/maintaining.md)
+before your first commit.
+
+The hook and the check look for the attribution line only. Prose that names
+Claude, Cursor or Gemini is left alone.
