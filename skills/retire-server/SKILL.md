@@ -70,7 +70,8 @@ console.
 Show the warning as the script wrote it: which server, its public IP, that the
 disk with `/data/coolify` and every hosted tool go with it, and that it cannot be
 undone. Add that the machine is logged out of the tailnet and the firewall and
-SSH key are deleted too, and that `.env.<name>` stays.
+SSH key are deleted too. On this computer the retire deletes `servers/<name>.yaml`
+and `servers/<name>.block.txt`, and `.env.<name>` stays.
 
 Then ask the person to type the server name to go ahead. Wait for their reply.
 

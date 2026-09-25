@@ -42,8 +42,11 @@ the tailnet during the launch.
    Tailscale admin console.
 2. Add the `groups`, `tagOwners` and `ssh` entries from
    [the preflight reference](../skills/launch-server/references/preflight.md#3-the-tailnet-policy),
-   with your own Tailscale sign-in address in the group. Where a section already
-   exists, add the entry inside it rather than pasting a second one.
+   with your own Tailscale login in the group. The
+   [Users page](https://login.tailscale.com/admin/users) shows it. If you sign in
+   with GitHub it looks like `name@github`, and that is the value to use. Where a
+   section already exists, add the entry inside it rather than pasting a second
+   one.
 3. Save. The console refuses a policy with a mistake and says where it is.
 
 Do this before the auth key: the key form offers only tags the policy already

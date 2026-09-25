@@ -68,8 +68,8 @@ yet" block, look for `servers/<name>.yaml` and `servers/<name>.block.txt`.
 
 - A block file means the server was launched. Show the block as step 6 says, and
   suggest `/check-server <name>` rather than a new launch.
-- A spec with no block may be a launch that stopped. If the last run got as far
-  as creating the server, go to step 5 and run the resume. A resume needs only
+- A spec with no block may be a launch that stopped. Try the resume; it is safe
+  either way. Go to step 5 and run it as that step says. A resume needs only
   `HCLOUD_TOKEN` and `PULUMI_CONFIG_PASSPHRASE`, creates no server, and stops
   with nothing spent when there is no server to resume.
 
@@ -127,17 +127,25 @@ Ask for a plain yes. Any other answer means do not launch.
 
 ## 5. The launch
 
-Start it in the background, because it runs longer than a foreground command may
-last:
+The launch runs longer than a foreground command may last, so start it in the
+background with its output going to a log file:
 
 ```bash
-npm run launch -- --server <name> --json
+npm run launch -- --server <name> --json > servers/<name>.launch.log 2>&1
 ```
 
-Each line of output is one JSON object. A `progress` line has `step`, `status`
+A background command may report only when it ends, which would be too late: the
+admin account step needs the person within minutes. So do not wait for the
+command to finish. Read the log file about every 30 seconds, or use a tool that
+reports each new line as it is written, until a `result` line appears. Read only
+the lines that are new since the last look. The log holds progress and no
+secret. Git ignores it, and a later launch or resume overwrites it.
+
+Each line is one JSON object. A `progress` line has `step`, `status`
 (`started`, `done`, `skipped` or `failed`) and sometimes `detail` or `ask`. The
-last line is a `result`. Read the output as it arrives, and tell the person where
-the launch is in one short line per finished step. Do not paste the raw JSON.
+last line is a `result`. Tell the person where the launch is in one short line
+per finished step. Do not paste the raw JSON. Every resume below runs the same
+way, with `--resume` and its flags added before `--json`.
 
 **The browser step.** A `started` line that carries an `ask` is the admin
 account step. Tell the person at once, using the address in the `ask` text:
@@ -171,7 +179,9 @@ Then offer the ways forward that `then` names:
 
 - `npm run launch -- --server <name> --resume --json`, once the finding is fixed.
   It runs the second phase again, changes nothing already written on the
-  server, and creates no new server, so it needs no new announcement.
+  server, and creates no new server. It does replace the live firewall rules
+  with the lane's, so say that in one line before it runs, for this resume and
+  every other.
 - `/retire-server <name>`, which destroys the server. It is a separate command
   with its own confirmation, so do not run the retire from here.
 

@@ -41,8 +41,11 @@ Section: [The tailnet policy](../../../docs/before-you-launch.md#the-tailnet-pol
 The person opens Access controls in the Tailscale admin console and adds the
 entries below. The launchpad holds no Tailscale credential that can edit the
 policy, so this is theirs to do. Give them the block exactly, with
-`you@example.com` replaced by the address they sign in to Tailscale with (ask
-for it; it is not a secret).
+`you@example.com` replaced by their Tailscale login (ask for it; it is not a
+secret). The login is shown on the Users page of the admin console,
+https://login.tailscale.com/admin/users. It is not always an email address: a
+person who signs in with GitHub has a login like `name@github`, and that exact
+value is what the group needs.
 
 ```json
 "groups": {
