@@ -66,6 +66,7 @@ documents disagree, the owner wins and the other is edited.
 | `docs/positioning.md` | The three-way story: the chain, what crosses each boundary, who carries it, and the exact server block and failure block formats. |
 | `docs/server-model.md` | The two lanes, the firewall rules per lane, the outside probe and its expected answers, why there is no `ufw`, why 22 is closed, and the troubleshooting table. |
 | `docs/design.md` | How a launch works, step by step, and the reason each step is where it is. |
+| `docs/before-you-launch.md` | Where to click in the Hetzner and Tailscale consoles before a launch, for the person. The policy block and the auth key settings it points at live in the preflight reference. |
 | `docs/sources.md` | The outside work the launchpad took ideas or code from, and what each one contributed. |
 | `docs/maintaining.md` | This file: writing, ownership, releasing. |
 | `AGENTS.md` | Standing rules for working on the source. |

@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * `npm run launch -- --server <name> [--resume] [--admin-created] [--two-factor-on] [--json]`
+ * `npm run launch -- --server <name> [--preflight] [--resume] [--admin-created] [--two-factor-on] [--json]`
  *
  * Reads servers/<name>.yaml and .env.<name>, runs the preflight, creates the
  * server with Pulumi, and runs Phase B to the server block: Phase A finished,
@@ -13,6 +13,11 @@
  * SSH, so it works after port 22 has closed. Every step can be run again: the
  * env file is never overwritten, the skills install is skipped once it has
  * happened, and the firewall rules are replaced as a whole.
+ *
+ * `--preflight` reads the spec and runs the checks on this computer and
+ * `.env.<name>`, then stops. It creates nothing and spends nothing, so
+ * /launch-server can show the person what is missing before it asks them to
+ * agree to the cost.
  *
  * Running it without `--resume` is also safe. `pulumi up` changes nothing on a
  * server that exists, because the program ignores later changes to user-data.
@@ -32,11 +37,12 @@ import { makeProgressRenderer, renderStopped } from "./output.js";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
-const USAGE = "Usage: npm run launch -- --server <name> [--resume] [--admin-created] [--two-factor-on] [--json]";
+const USAGE = "Usage: npm run launch -- --server <name> [--preflight] [--resume] [--admin-created] [--two-factor-on] [--json]";
 
 interface Args {
     server: string;
     json: boolean;
+    preflight: boolean;
     resume: boolean;
     adminCreated: boolean;
     twoFactorOn: boolean;
@@ -44,17 +50,21 @@ interface Args {
 
 function parseArgs(argv: string[]): Args {
     let server: string | undefined;
-    const flags = { json: false, resume: false, adminCreated: false, twoFactorOn: false };
+    const flags = { json: false, preflight: false, resume: false, adminCreated: false, twoFactorOn: false };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === "--server") server = argv[++i];
         else if (a === "--json") flags.json = true;
+        else if (a === "--preflight") flags.preflight = true;
         else if (a === "--resume") flags.resume = true;
         else if (a === "--admin-created") flags.adminCreated = true;
         else if (a === "--two-factor-on") flags.twoFactorOn = true;
         else throw new Error(`Unknown argument "${a}". ${USAGE}`);
     }
     if (!server) throw new Error(`Missing --server <name>. ${USAGE}`);
+    if (flags.preflight && (flags.resume || flags.adminCreated || flags.twoFactorOn)) {
+        throw new Error(`--preflight runs on its own. ${USAGE}`);
+    }
     if (server === "example") {
         // servers/example.yaml and .env.example are the templates, both tracked.
         throw new Error("example is the template. Copy servers/example.yaml to servers/<name>.yaml and launch that name.");
@@ -105,6 +115,12 @@ function realDeps(hcloudToken: string): PhaseBDeps {
         httpStatus: (url) => httpStatus(url),
         writeHandOver: (server, text) => writeHandOver(server, repoRoot, text),
     };
+}
+
+/** The checks alone, for --preflight: nothing is created and nothing is spent. */
+async function preflightOnly(args: Args, onProgress: OnProgress): Promise<void> {
+    const spec = await step(onProgress, `Reading servers/${args.server}.yaml`, () => loadSpec(args.server, repoRoot));
+    await step(onProgress, `Checking this computer and .env.${spec.name}`, () => preflight(spec, REQUIRED_SECRETS));
 }
 
 async function launch(args: Args, onProgress: OnProgress, markServerMayExist: () => void): Promise<PhaseBResult> {
@@ -178,6 +194,13 @@ async function main(): Promise<void> {
         render(e);
     };
     try {
+        if (args.preflight) {
+            await preflightOnly(args, onProgress);
+            const ready = `Ready to launch ${args.server}. Nothing was created and nothing was spent.`;
+            if (args.json) process.stdout.write(JSON.stringify({ type: "result", status: "ready", detail: ready }) + "\n");
+            else process.stdout.write(`\n${ready}\n`);
+            return;
+        }
         const result = await launch(args, onProgress, () => (serverMayExist = true));
         if (args.json) {
             process.stdout.write(

@@ -68,6 +68,23 @@ refuses a version that does not match every skill.
   a new Admin line says how the account was known to exist.
 - All of this has passed its unit tests against stand-ins and the offline
   preview. None of it has run against Hetzner.
-- Still to land, one slice at a time: the three skills with their generated
-  adapters and prose guards, then release 0.1.0 after a full rehearsal through
-  coolify-devops's canary and `/retire-server`.
+- The three commands work in Claude Code. `/launch-server` asks six questions
+  and writes `servers/<name>.yaml`. It walks you through the Hetzner token, the
+  tailnet policy, the auth key and the env file, and checks what it can with
+  the new `npm run launch -- --server <name> --preflight`, which creates
+  nothing. It says what the server will cost before it creates one, tells you
+  when to create the Coolify admin account, and reads the server block back.
+  `/check-server` reads a server and changes nothing. `/retire-server` destroys
+  a server only after you type its name in reply to the warning.
+- [docs/before-you-launch.md](docs/before-you-launch.md) says where to click in
+  the Hetzner and Tailscale consoles. The tailnet policy's `ssh` rule names a
+  group of operators, because Tailscale does not accept `autogroup:admin` as
+  the source of an `ssh` rule.
+- Prose guards under `tests/rules/` keep the rules the scripts cannot hold: a
+  secret is checked for presence and never read, a pasted token is refused,
+  the retire waits for the typed name, a step that costs money is announced, the
+  check only reads, the launch stops at the block, and each description ends
+  with its closing sentence.
+- Still to land: a first real launch driven from a Claude Code session, then
+  release 0.1.0 after a full rehearsal through coolify-devops's canary and
+  `/retire-server`.
