@@ -1,0 +1,8 @@
+name: coolify-launchpad
+description: One Hetzner server running Coolify on a Tailscale tailnet. Run through npm run launch, never by hand.
+runtime:
+  name: nodejs
+  options:
+    typescript: false
+    nodeargs: --import tsx
+main: index.ts

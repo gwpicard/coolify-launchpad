@@ -41,14 +41,16 @@ One route in this version: clone the repository and work inside it.
 git clone https://github.com/gwpicard/coolify-launchpad
 cd coolify-launchpad
 npm install
-pulumi login file://$PWD/.pulumi
 cp .env.example .env.<name>
+chmod 600 .env.<name>
 ```
 
 Fill in `.env.<name>`. It holds three values: your Hetzner API token, a
 passphrase Pulumi uses to encrypt its own state, and a Tailscale auth key. The
-file is ignored by Git and is read for presence only; the commands never print
-its contents.
+file is ignored by Git. The launch checks that each value is set and that only
+you can read the file, hands the values to Pulumi, and never prints them. Pulumi
+keeps its state in `.pulumi/` in this folder; the launch points it there itself,
+so there is no separate login step.
 
 Start Claude Code in that folder and type `/launch-server`. The agent asks six
 questions one at a time, checks what it needs before spending any money, builds

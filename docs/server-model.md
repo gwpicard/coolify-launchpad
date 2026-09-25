@@ -88,9 +88,11 @@ A tagged node needs an explicit SSH grant. Tailscale's default policy lets membe
 
 ## The auth key
 
-The Tailscale auth key in `.env.<name>` must be created for `tag:server`, reusable, and not ephemeral.
+The Tailscale auth key in `.env.<name>` must be created for `tag:server`, one-off rather than reusable, pre-approved, and not ephemeral.
 
 Created for the tag, it brings the node up already tagged, and a tagged node has no key expiry. That removes two console steps coolify-devops otherwise hands over and verifies: tagging the node after the fact and disabling key expiry on it. The launchpad still reads `.Self.Tags` and `.Self.KeyExpiry` back and stops if either is wrong.
+
+One-off, because the key travels in user-data, and user-data stays readable from Hetzner's metadata service for the life of the server, by any process or container on the box. A one-off key is spent the moment the server joins, so what stays readable can no longer add a machine to the tailnet. A reusable key would stay live there until it expires. Pre-approved, so a tailnet that requires device approval still lets the node straight in. A new launch needs a new key.
 
 Not ephemeral, because an ephemeral node is removed from the tailnet after it goes offline. A server reboots. A reboot that took long enough would delete the server's tailnet identity, and every internal tool would go dark. The stale machine that a retired server leaves behind is handled in `/retire-server` instead, as a console step handed to the person.
 
