@@ -22,6 +22,7 @@ const root = fileURLToPath(new URL("../..", import.meta.url));
 const PULUMI = `#!/bin/sh
 echo "$* backend=$PULUMI_BACKEND_URL token=$([ -n "$HCLOUD_TOKEN" ] && echo set || echo unset)" >> "$STAND_IN/pulumi.log"
 case "$*" in
+  version) echo v3.0.0-stand-in ;;
   "stack ls --json --non-interactive") echo '[{"name":"alpha"}]' ;;
   "stack export --stack alpha --non-interactive") cat "$STAND_IN/export.json" ;;
   "stack output ipv4Address --stack alpha --non-interactive") echo 203.0.113.10 ;;
@@ -36,6 +37,7 @@ const SSH = `#!/bin/sh
 for a; do last="$a"; done
 printf '%s\\n' "$last" | head -n 1 >> "$STAND_IN/ssh.log"
 case "$last" in
+  -V) echo "OpenSSH stand-in" >&2 ;;
   'echo "instance_id='*) echo instance_id=3001; echo public_ip=203.0.113.10 ;;
   setsid*) touch "$STAND_IN/logged-out"; echo logout=scheduled ;;
   true) if [ -f "$STAND_IN/logged-out" ]; then exit 255; fi ;;
@@ -199,6 +201,41 @@ test("npm run check-server reads and changes nothing, then shows the block again
         assert.ok(log(f, "pulumi.log").every((l) => l.startsWith("stack output")), log(f, "pulumi.log").join("\n"));
         assert.ok(h.calls.every((c) => c.method === "GET"));
         assert.ok(existsSync(join(f.repo, "servers", "alpha.yaml")));
+    } finally {
+        h.server.close();
+        rmSync(join(f.repo, ".."), { recursive: true, force: true });
+    }
+});
+
+test("npm run launch --preflight names what is missing, then says ready, and creates nothing", { timeout: 60_000 }, async () => {
+    const f = makeFolder();
+    const h = await hetznerStandIn();
+    try {
+        // The folder's env file lacks TAILSCALE_AUTH_KEY, which a first launch needs.
+        const missing = await run(f, h.endpoint, "launch.ts", ["--server", "alpha", "--preflight"]);
+        assert.equal(missing.status, 1, missing.stdout);
+        assert.match(missing.stdout, /TAILSCALE_AUTH_KEY/);
+        assert.match(missing.stdout, /Not launched yet/);
+
+        writeFileSync(
+            join(f.repo, ".env.alpha"),
+            `HCLOUD_TOKEN=${MARKER_TOKEN}\nPULUMI_CONFIG_PASSPHRASE=marker-passphrase\nTAILSCALE_AUTH_KEY=marker-auth-key\n`,
+            { mode: 0o600 },
+        );
+        const ready = await run(f, h.endpoint, "launch.ts", ["--server", "alpha", "--preflight", "--json"]);
+        assert.equal(ready.status, 0, ready.stdout);
+        const last = JSON.parse(ready.stdout.trim().split("\n").pop()!);
+        assert.equal(last.status, "ready");
+
+        for (const out of [missing.stdout, ready.stdout]) {
+            assert.ok(!out.includes(MARKER_TOKEN) && !out.includes("marker-passphrase") && !out.includes("marker-auth-key"), "a value was printed");
+        }
+        const pulumi = log(f, "pulumi.log").map((l) => l.split(" backend=")[0]);
+        assert.deepEqual(pulumi, ["version", "version"], "the preflight asked pulumi for more than its version");
+        assert.deepEqual(h.calls, [], "the preflight called Hetzner");
+
+        const mixed = await run(f, h.endpoint, "launch.ts", ["--server", "alpha", "--preflight", "--resume"]);
+        assert.equal(mixed.status, 2);
     } finally {
         h.server.close();
         rmSync(join(f.repo, ".."), { recursive: true, force: true });

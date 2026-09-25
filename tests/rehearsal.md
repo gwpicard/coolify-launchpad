@@ -154,6 +154,27 @@ Phase B steps 4 to 9, the tooling section, the check and the retire have passed
   server whose id differs from the stack's, all before it asks for the name. A
   wrong, empty or near-miss name destroys nothing.
 
+The three skills, their references and the prose guards have passed
+`npm run check` without a server:
+
+- `npm run launch -- --server <name> --preflight` names a missing key and no
+  value, says ready once the three keys are set, asks Pulumi for its version and
+  nothing else, and makes no Hetzner call.
+- The guards under `tests/rules/` find each written rule in its skill and fail
+  on a copy with that rule removed: presence not value in all three skills, the
+  pasted token refused, the typed name for the retire, the announcement before
+  the server is created and before the destroy, the check that only reads, the
+  launch stopping at the block with no later step named, and the closing
+  sentence last in every description.
+- `skills-ref validate` accepts each skill, and the generated adapters match.
+
+A session driven by typing `/launch-server` has not run yet. The first real run
+does it that way, and also confirms two things only a person at the consoles
+can: that the steps in `docs/before-you-launch.md` match what the Hetzner and
+Tailscale consoles show, and that the tailnet policy entries in the preflight
+reference save as written. It also records where Coolify puts two-factor
+authentication, which the admin step names as Settings, General.
+
 The first real run is still pending. Until it has happened, nothing here is
 claimed to work on Hetzner. It must run `npm run launch -- --server <name>` in
 `github` mode with no public lane to the block, and then confirm the facts above

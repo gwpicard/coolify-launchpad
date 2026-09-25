@@ -50,7 +50,10 @@ passphrase Pulumi uses to encrypt its own state, and a Tailscale auth key. The
 file is ignored by Git. The launch checks that each value is set and that only
 you can read the file, hands the values to Pulumi, and never prints them. Pulumi
 keeps its state in `.pulumi/` in this folder; the launch points it there itself,
-so there is no separate login step.
+so there is no separate login step. Where to make the token and the key, and the
+tailnet policy entries the key needs first, are in
+[docs/before-you-launch.md](docs/before-you-launch.md). `/launch-server` walks
+you through the same steps if you have not done them yet.
 
 Start Claude Code in that folder and type `/launch-server`. The agent asks six
 questions one at a time, checks what it needs before spending any money, builds

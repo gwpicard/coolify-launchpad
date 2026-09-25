@@ -41,6 +41,7 @@ docs/
   positioning.md          the three-way story and the block formats
   server-model.md         lanes, firewall rules, the probe table, troubleshooting
   design.md               how a launch works and why each step is where it is
+  before-you-launch.md    the console steps a launch needs, for the person, linked from the preflight
   sources.md              borrowed ideas and where they came from
   maintaining.md          writing rules, one owner per concept, release steps
 tests/
@@ -50,19 +51,20 @@ tests/
   fixtures/               a saved copy of GitHub's meta answer, for the github rule
   offline-preview.sh      pulumi preview with stand-in secrets and local state; reaches no Hetzner, Tailscale or Pulumi service
   lib/existing-server-state.ts   the hand-built state of a running server that the offline preview plans against
-  rules/                  prose guards built on tests/lib/rule-shape.sh
+  rules/                  prose guards built on tests/lib/rule-shape.sh: presence not value, no pasted
+                          token, the typed name, announcements, the closing sentence, the stop at the block
   lib/rule-shape.sh       the guard library, copied from AI Build Kit
   rehearsal.md            what a release rehearsal does, and the record of runs
 tools/                    build-adapters.sh and validate.sh
 .github/workflows/        check.yml: what CI runs on every push and pull request
 ```
 
-The program has landed: `npm run launch` takes a spec to the server block,
-`npm run check-server` reads a server back, and `npm run retire` destroys one.
-None of it has run against a real server yet. `tests/rules/` and each skill's
-`references/` folder are empty until their slice lands. The three `SKILL.md` files exist so that every check
-runs for real from the first commit; each says the command is not built yet and
-stops. `CHANGELOG.md` says which slices are still to come.
+The program and the three skills have landed. `/launch-server` interviews the
+person and hands over to `npm run launch`, which takes a spec to the server
+block. `/check-server` hands over to `npm run check-server`, which reads a
+server back, and `/retire-server` to `npm run retire`, which destroys one. None
+of it has run against a real server yet. `CHANGELOG.md` says what is still to
+come.
 
 ## The boundary
 

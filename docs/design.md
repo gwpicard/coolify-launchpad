@@ -155,9 +155,12 @@ The operator's machine is on the tailnet, shown by `tailscale status` working
 locally. The person needs this to register the Coolify admin over the tailnet, and
 the launchpad needs it to reach the box after port 22 closes.
 
-The tailnet policy holds the block in `references/preflight.md`, pasted as one
-piece: `tagOwners` for `tag:server`, and an `ssh` rule whose source is the admin
-group, whose destination is `tag:server`, and whose users are `root`. The default
+The tailnet policy holds the entries in
+[the preflight reference](../skills/launch-server/references/preflight.md): a
+group for the operators, `tagOwners` for `tag:server`, and an `ssh` rule whose
+source is that group, whose destination is `tag:server`, and whose users are
+`root`. The source is a named group because Tailscale does not accept
+`autogroup:admin` as the source of an `ssh` rule. The default
 `ssh` section only lets members reach their own devices. A tagged node has no
 owner, so without this rule Tailscale SSH refuses everyone, including the
 operator. The `autoApprovers.services` entry and the OAuth client stay
@@ -174,7 +177,9 @@ reboot could delete the server's identity.
 The launch script cannot read these last two from the operator's machine: seeing
 the tailnet policy or how a key was made takes a Tailscale API credential the
 launchpad does not hold. So `/launch-server` asks the person to confirm both
-before it runs the launch, and Phase B proves them on the real node. Step 2 reads
+before it runs the launch, and Phase B proves them on the real node. What a
+machine can check, it checks first with `npm run launch -- --server <name>
+--preflight`, which runs the preflight alone and creates nothing. Step 2 reads
 the tag and the key expiry back, and step 3 proves the SSH grant, both before
 anything closes.
 
