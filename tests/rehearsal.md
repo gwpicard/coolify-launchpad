@@ -29,13 +29,27 @@ checked on every run, because the services behind them change without notice.
 - Coolify's registration page stops answering 200 at `/register` once the first
   user exists, so Phase B can wait on it without asking the person.
 - Coolify's installer accepts a positional version argument and requires root.
+  Once it does, `COOLIFY_VERSION` in `program/cloud-init/build.ts` is set to the
+  version that run installed.
 - The Hetzner server type names and prices the interview offers still exist in the
-  chosen location.
+  chosen location: `cpx32`, the default, and `cpx22`, the smaller size a
+  rehearsal uses. Record the price each showed.
+- `apt-get` and both installers finish over IPv4 with the `Acquire::ForceIPv4`
+  file in place, and nothing in `/var/log/cloud-init-output.log` waits on an IPv6
+  address.
+- A failed step in Phase A makes `cloud-init status` report `error`, so step 1
+  stops early instead of waiting 20 minutes.
+- `curl -fsS http://127.0.0.1:8000` answers once Coolify is up, and whether
+  `localhost:8000` answers too.
+- On a real node, `tailscale status --json` gives `.Self.Tags` with `tag:server`,
+  no `.Self.KeyExpiry`, `.CertDomains` filled in, and says whether it carries
+  `.CurrentTailnet.MagicDNSEnabled`. `tailscale debug prefs` gives `RunSSH: true`.
 - GitHub's published hook ranges, read from `https://api.github.com/meta`, are what
   the `github` firewall rule contains, and a real push through them reaches Coolify.
 - `npx -y skills add ...` completes over an SSH session with no terminal.
 - The SSH grant in the pasted policy lets the operator open `ssh root@<tailnet-ip>`
-  with no key, before port 22 is closed.
+  with no key, before port 22 is closed, and with every key and password method
+  turned off, the way step 3 runs it.
 - `npx skills add gwpicard/coolify-launchpad` does not offer the vendored humanizer
   under `.agents/maintainer-skills/`.
 - `/setup-coolify-devops` step 2 passes its firewall check with no gap recorded for
@@ -43,6 +57,51 @@ checked on every run, because the services behind them change without notice.
 - `npm run launch -- --server <name> --resume` after 22 is closed completes over the
   tailnet and leaves the env file untouched.
 - No token value appears anywhere in either session's transcript.
+
+## Before the first real run
+
+This part of the record holds what has been shown without a real server, so the
+first real run knows what it still has to prove.
+
+The substrate (the spec, the env check, the Pulumi program, cloud-init sections
+1, 2, 4 and 5, and Phase B steps 1 to 3) has passed:
+
+- `npm run check`: the unit tests, the type check, and the repository checks.
+  The unit tests cover a spec whose name differs from its file name, the env
+  check naming keys and never a value (including an untouched copy of
+  `.env.example`, whose trailing comments must not count as values), every
+  placeholder resolving, no `ubuntu` user and no `ufw`, every fetch over IPv4, and
+  the tailnet checks against saved `tailscale status` answers.
+- `npm run preview:offline`: `pulumi preview` on a copy of the program with a
+  throwaway local state folder, stand-in secrets, and the Hetzner provider
+  pointed at a closed port on the operator's machine. It plans five resources
+  (the stack, the key pair, the SSH key, the firewall `coolify` with one inbound
+  rule for 22 and no outbound rules, and the `cpx32` server in `nbg1` on
+  `ubuntu-24.04`), and user-data shows only as `[secret]`. The first run
+  downloaded the Hetzner and TLS provider plugins; nothing reached Hetzner,
+  Tailscale or Pulumi Cloud. The Hetzner provider refuses to start unless the
+  token is exactly 64 characters, so the stand-in is that long.
+
+The first real run is still pending. Until it has happened, nothing here is
+claimed to work on Hetzner. It must reach "SSH grant proved" with
+`npm run launch -- --server <name>` and then confirm the facts above that a
+laptop cannot: the installer's version argument and root requirement, the type
+names and prices, apt over IPv4, `cloud-init status` on a failure, what a real
+node reports to step 2, and the SSH grant with key methods off.
+
+Until `/retire-server` exists, the server is destroyed by hand from the
+repository folder. The first line loads the secrets into the shell without
+printing them:
+
+```bash
+set -a; . ./.env.<name>; set +a
+cd program
+PULUMI_BACKEND_URL="file://$PWD/../.pulumi" pulumi destroy --stack <name> --yes
+PULUMI_BACKEND_URL="file://$PWD/../.pulumi" pulumi stack rm <name> --yes
+```
+
+Then remove the machine under Machines in the Tailscale console, because
+destroying the server does not take it off the tailnet.
 
 ## What to record
 

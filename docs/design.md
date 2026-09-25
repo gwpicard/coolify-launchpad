@@ -11,8 +11,7 @@ be confirmed in the first rehearsal" are assumptions the code leans on until
 
 The repository is the operator's working folder, the way coolify-devops's
 deployment repository is the server's. In version 0.1 there is one install route:
-clone it, run `npm install`, run `pulumi login file://$PWD/.pulumi`, and start
-Claude Code inside it. Cloning is installing, because the generated
+clone it, run `npm install`, and start Claude Code inside it. Cloning is installing, because the generated
 `.claude/commands/` adapters are in the checkout.
 
 The other routes, `npx skills add` and a Claude plugin, wait for a later version.
@@ -23,10 +22,17 @@ produce a command that fails at its first step.
 
 State stays local and is ignored by git: `servers/<name>.yaml` for each server,
 `.env.<name>` at mode 600 for its secrets, and `.pulumi/` for the Pulumi state.
+The launch points Pulumi at `.pulumi/` itself, through `PULUMI_BACKEND_URL`, so
+there is no `pulumi login` step. A computer that is also signed in to Pulumi
+Cloud for other work still keeps this state in the folder. The Pulumi program
+sits in `program/`, and each server is a stack named after the server.
+
+The name `example` is kept for the two tracked templates, `servers/example.yaml`
+and `.env.example`, and the launch refuses it.
 
 The skills do the talking and TypeScript does the work. A skill never runs `pulumi`
-itself. It runs `npm run launch -- --server <name>` and reads the structured
-progress events that come back. Each skill's first step checks that the
+itself. It runs `npm run launch -- --server <name> --json` and reads the progress
+events that come back, one JSON object per line, ending in a result line. Each skill's first step checks that the
 `package.json` name is `coolify-launchpad`, and otherwise tells the person to clone
 the repository.
 
@@ -92,10 +98,13 @@ Nothing is spent until every one of these has been verified. None is assumed.
 The three secrets are present in `.env.<name>`: `HCLOUD_TOKEN`,
 `PULUMI_CONFIG_PASSPHRASE` and `TAILSCALE_AUTH_KEY`. Presence only. There is no
 `TAILNET_DNS_NAME`, because the tailnet suffix is discovered on the node in Phase B
-rather than typed.
+rather than typed. The file itself must be readable by its owner only; a copy of
+`.env.example` arrives at mode 644, so the check names the `chmod 600` to run. A
+key followed only by a comment, the way `.env.example` ships, counts as not set.
+The check reports key names and nothing else. The values go from the file into
+the `pulumi` process's environment and nowhere else.
 
-`pulumi` is on the path and logged in to the local backend, `node` is version 20 or
-newer, and `ssh` exists.
+`pulumi` is on the path, `node` is version 20 or newer, and `ssh` exists.
 
 The operator's machine is on the tailnet, shown by `tailscale status` working
 locally. The person needs this to register the Coolify admin over the tailnet, and
@@ -114,6 +123,13 @@ brings the node up already tagged, with key expiry disabled. Ephemeral is the
 wrong choice for a server: an ephemeral node is removed once it goes offline, so a
 reboot could delete the server's identity.
 
+The launch script cannot read these last two from the operator's machine: seeing
+the tailnet policy or how a key was made takes a Tailscale API credential the
+launchpad does not hold. So `/launch-server` asks the person to confirm both
+before it runs the launch, and Phase B proves them on the real node. Step 2 reads
+the tag and the key expiry back, and step 3 proves the SSH grant, both before
+anything closes.
+
 ## Phase A: cloud-init
 
 Cloud-init runs as root on the new server. The script is assembled the way
@@ -130,7 +146,11 @@ The sections, in order:
 
 1. `base.sh` runs `apt-get` update and upgrade with `Acquire::ForceIPv4=true` and
    installs `curl`, `git` and `jq`. Every `curl` in Phase A uses `-4`: a dead IPv6
-   route on a Hetzner image has hung package fetches before. There is no `ubuntu`
+   route on a Hetzner image has hung package fetches before. It also writes
+   `Acquire::ForceIPv4 "true"` into `/etc/apt/apt.conf.d/`, because the Tailscale
+   and Coolify installers run `apt-get` themselves, and a flag on our own lines
+   would not reach theirs. The script runs under `set -euo pipefail`, so any
+   failed step stops it and `cloud-init status` reports `error`. There is no `ubuntu`
    user, because Coolify's installer wants root, coolify-devops lands in `/root`,
    and Tailscale SSH gives root. There are no build tools, no ffmpeg, no Python,
    no ripgrep and no Homebrew; those were the previous payload's needs.
@@ -139,13 +159,15 @@ The sections, in order:
    here stops the script; hermes-launchpad only printed a warning, and a box that
    silently missed the tailnet was unreachable by name. The key travels base64
    encoded, so a stray character in it cannot break the script.
-3. `tooling.sh` installs Node 22 from NodeSource and Claude Code with `npm i -g
+3. `tooling.sh` (not built yet) installs Node 22 from NodeSource and Claude Code with `npm i -g
    @anthropic-ai/claude-code`. It is included only when question 5 was yes. It
    still belongs in user-data because it is decided before creation and never
    changes.
 4. `coolify.sh` runs Coolify's installer with a positional version argument. That
    the installer accepts one, and that it requires root, are to be confirmed in
-   the first rehearsal; the version is pinned once they are. The admin account is
+   the first rehearsal; the version is pinned once they are. Until then
+   `COOLIFY_VERSION` in `program/cloud-init/build.ts` is unset and the installer
+   installs its current release. The admin account is
    not pre-created with the installer's `ROOT_USER_*` variables, because that
    would put a password in user-data, which any process on the box can read from
    the metadata service. The admin is registered over the tailnet in Phase B, as
@@ -163,7 +185,17 @@ The project is `coolify-launchpad`. The resources are `coolify-ssh-key`,
 `coolify-server`, and a firewall named exactly `coolify`, which is the name
 coolify-devops expects to find. The image is Ubuntu 24.04 LTS. The server carries
 the labels `purpose=coolify` and `server=<name>`. None of hermes-launchpad's legacy
-resource names survive; there is no old stack to stay compatible with.
+resource names survive; there is no old stack to stay compatible with. The key
+pair Pulumi generates is also named `coolify-ssh-key`, which Pulumi allows
+because the two resources have different types. User-data is marked secret, so
+the auth key inside it is encrypted in the state file rather than stored as
+plain text.
+
+Hetzner firewall names are unique within a Hetzner project. Because the
+firewall must be called `coolify`, one Hetzner project holds one launchpad
+server. A second launch into the same project fails when it tries to create a
+second `coolify` firewall. The SSH key is named `coolify-launchpad-<name>`, so it
+does not collide.
 
 At creation the firewall allows inbound TCP 22 from anywhere and nothing else.
 There are no outbound rules, which keeps all outbound traffic open, as
@@ -194,17 +226,30 @@ Each step is a progress event:
    a 20-minute limit. Then also run `curl -sI http://localhost:8000` on the box.
    On a Hetzner box `localhost` once resolved to IPv6 while a service bound IPv4
    only, and `localhost:8000` is what coolify-devops's env file will point at, so
-   the mismatch is caught here rather than after hand-over.
+   the mismatch is caught here rather than after hand-over. The step does not
+   stop on it: it reports the mismatch so step 5 can write `127.0.0.1` instead.
+   It does stop early when `cloud-init status` reports `error`, and points at
+   `/var/log/cloud-init-output.log`.
 2. Verify the tailnet with coolify-devops's own checks. `tailscale status --json`
    gives `.Self.HostName`; `.Self.Tags` lists `tag:server`; `.Self.KeyExpiry` is
    `null`; `.MagicDNSSuffix` is set, and that value is the tailnet name;
    `.CertDomains` is set, which means HTTPS is enabled on the tailnet. `tailscale
    debug prefs | jq .RunSSH` is `true`. Read `tailscale ip -4` and the public
    address from `curl -4 -s https://api.ipify.org`. If MagicDNS or HTTPS is off,
-   stop and give the console link.
+   stop and give the console link. The comment on `.MagicDNSSuffix` in
+   Tailscale's source says it is filled in whether or not MagicDNS is on, so the
+   check also reads `.CurrentTailnet.MagicDNSEnabled` when the node reports it.
+   The first rehearsal confirms which of the two a real node gives. It also
+   checks that the node's DNS name starts with the server name. If an older
+   machine of the same name is still in the tailnet, the new one joins as
+   `<name>-1`, and the step stops and says which machine to remove.
 3. Prove the SSH grant from the operator's machine: `ssh -o BatchMode=yes
    root@<tailnet-ip> true`. On failure, stop before anything closes, and show the
-   policy block to paste. On success, every later step uses this leg.
+   policy block to paste. On success, every later step uses this leg. The command
+   turns off every key and password method, so only Tailscale SSH can let it in,
+   and a key that happens to sit in this computer's agent cannot make a missing
+   grant look present. It retries for 90 seconds, because a new node can take a
+   moment to appear in this computer's peer list.
 4. Wait for the admin account. Tell the person to open `http://<tailnet-ip>:8000`
    from this computer now and create the admin account, because whoever reaches
    that page first owns the server, which is why nothing is open to the internet
@@ -248,7 +293,8 @@ the whole rule set each time.
 ## What came from hermes-launchpad
 
 Copied: `lib/secrets.ts` (the base64 route for a secret through bash),
-`lib/env.ts` (a dependency-free reader for `.env` files), the SSH harness from
+`lib/env.ts` (a dependency-free reader for `.env` files, now private behind a
+check that returns key names only), the SSH harness from
 `lib/post-deploy.ts`, `stageSshKey`, the progress event shapes from
 `targets/index.ts`, the progress renderer and `humanDuration` from
 `scripts/run.ts`, the cloud-init assembly in `build.ts` with its comment about

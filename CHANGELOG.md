@@ -17,8 +17,18 @@ refuses a version that does not match every skill.
   first user, the installer's version argument, the current Hetzner type names,
   GitHub's hook ranges, `npx -y` over a session with no terminal, the SSH grant,
   the humanizer's placement) are all marked to be confirmed in the first rehearsal.
-- Still to land, one slice at a time: the substrate (the Pulumi program,
-  cloud-init, the spec, and Phase B through the SSH grant), then Phase B to the
-  server block with `--resume` and the check and retire scripts, then the three
+- The substrate has landed. `npm run launch -- --server <name>` reads the spec
+  and `.env.<name>`, checks this computer and that each secret is set (by name,
+  never by value), creates the server with Pulumi, waits for cloud-init and
+  Coolify, verifies the tailnet node, and proves the SSH grant from this
+  computer. It stops there, with port 22 still open. If it stops earlier, it
+  prints the failure block; its way forward is to run the launch again, or to
+  destroy the stack by hand as `tests/rehearsal.md` describes, until `--resume`
+  and `/retire-server` land. It has passed its unit tests and an offline
+  `pulumi preview`. It has not yet run against Hetzner.
+- `pulumi login` is no longer an install step: the launch keeps Pulumi's state in
+  `.pulumi/` itself. A copy of `.env.example` needs `chmod 600`, and the launch
+  says so if it is missing.
+- Still to land, one slice at a time: Phase B to the server block with `--resume` and the check and retire scripts, then the three
   skills with their generated adapters and prose guards, then release 0.1.0 after
   a full rehearsal through coolify-devops's canary and `/retire-server`.

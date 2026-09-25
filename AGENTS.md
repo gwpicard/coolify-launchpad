@@ -32,9 +32,9 @@ skills/                   the three commands, one folder each, the canonical sou
   retire-server/          SKILL.md
 .claude/commands/         generated from skills/ by tools/build-adapters.sh; never hand-edited
 .agents/maintainer-skills/humanizer/   vendored writing skill; outside every skills folder on purpose
-lib/                      spec, env, secrets, ssh, hetzner-firewall, server-block
+lib/                      spec, env, secrets, ssh, progress, pulumi, tailnet, phase-b; later hetzner-firewall, server-block
 program/                  Pulumi.yaml, index.ts, cloud-init/build.ts and its snippets
-scripts/                  launch, check, retire, output: the dispatcher the skills call
+scripts/                  launch and output now, check and retire later: the dispatcher the skills call
 servers/                  example.yaml is tracked; every real server file is ignored
 docs/
   positioning.md          the three-way story and the block formats
@@ -43,7 +43,8 @@ docs/
   sources.md              borrowed ideas and where they came from
   maintaining.md          writing rules, one owner per concept, release steps
 tests/
-  unit/                   Node's test runner: cloud-init assembly, firewall table, spec, block
+  unit/                   Node's test runner: cloud-init assembly, spec, env check, tailnet checks, harness
+  offline-preview.sh      pulumi preview with stand-in secrets and local state; reaches no Hetzner, Tailscale or Pulumi service
   rules/                  prose guards built on tests/lib/rule-shape.sh
   lib/rule-shape.sh       the guard library, copied from AI Build Kit
   rehearsal.md            what a release rehearsal does, and the record of runs
@@ -51,8 +52,9 @@ tools/                    build-adapters.sh and validate.sh
 .github/workflows/        check.yml: what CI runs on every push and pull request
 ```
 
-`lib/`, `program/`, `scripts/`, `tests/rules/` and each skill's `references/` folder are
-empty until their slice lands. The three `SKILL.md` files exist so that every check
+The substrate has landed: `lib/`, `program/` and `scripts/launch.ts` take a spec to a
+server whose SSH grant is proved, and no further. `tests/rules/` and each skill's
+`references/` folder are empty until their slice lands. The three `SKILL.md` files exist so that every check
 runs for real from the first commit; each says the command is not built yet and
 stops. `CHANGELOG.md` says which slices are still to come.
 
@@ -144,11 +146,16 @@ before it is saved.
 ## Checks
 
 ```bash
-npm test               # unit tests: cloud-init assembly, firewall table per lane, spec, server block
-npm run typecheck      # tsc --noEmit over lib/, program/, scripts/
+npm test               # unit tests: cloud-init assembly, spec, env check, tailnet checks, harness
+npm run typecheck      # tsc --noEmit over lib/, program/, scripts/, tests/unit/
 npm run validate       # tools/validate.sh: skills-ref validate, version sync, adapter drift, prose scan
 npm run check          # test + typecheck + validate; what CI runs
+npm run preview:offline  # pulumi preview on a copy, stand-in secrets, local state; needs the Pulumi CLI
 ```
+
+The offline preview is not part of `check`, because CI has no Pulumi CLI. Run it
+after changing `program/`. It points the Hetzner provider at a closed local port,
+so it cannot reach Hetzner even by mistake.
 
 `tools/validate.sh` also scans every tracked Markdown file for em dashes and the
 banned words, and runs the prose guards under `tests/rules/`. A guard asserts that
