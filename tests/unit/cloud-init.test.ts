@@ -3,13 +3,14 @@
 // encoded. The key below is a made-up marker, not a credential.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildUserData, substitute, SECTIONS } from "../../program/cloud-init/build.js";
+import { buildUserData, substitute, sectionsFor } from "../../program/cloud-init/build.js";
 import { b64 } from "../../lib/secrets.js";
 
 const KEY = "marker-ts-key-with-$-and-'-and-\"-0004";
 
+// With the tooling, so every check below also covers the tooling section.
 function script(extra: Partial<Parameters<typeof buildUserData>[0]> = {}): string {
-    return buildUserData({ serverName: "alpha", tailscaleAuthKey: KEY, ...extra });
+    return buildUserData({ serverName: "alpha", tailscaleAuthKey: KEY, installTooling: true, ...extra });
 }
 
 test("every placeholder resolves", () => {
@@ -38,13 +39,16 @@ test("the auth key only appears base64 encoded", () => {
 });
 
 test("the sections run in the designed order and the sentinel is last", () => {
-    assert.deepEqual([...SECTIONS], ["base.sh", "tailscale.sh", "coolify.sh", "sentinel.sh"]);
+    assert.deepEqual(sectionsFor(true), ["base.sh", "tailscale.sh", "tooling.sh", "coolify.sh", "sentinel.sh"]);
+    assert.deepEqual(sectionsFor(false), ["base.sh", "tailscale.sh", "coolify.sh", "sentinel.sh"]);
     const s = script();
     const at = (needle: string) => s.indexOf(needle);
     assert.ok(s.startsWith("#!/bin/bash\n"));
     assert.ok(at("set -euo pipefail") < at("apt-get"));
     assert.ok(at("apt-get") < at("tailscale up"));
-    assert.ok(at("tailscale up") < at("coolify/install.sh"));
+    assert.ok(at("tailscale up") < at("setup_22.x"));
+    assert.ok(at("setup_22.x") < at("@anthropic-ai/claude-code"));
+    assert.ok(at("@anthropic-ai/claude-code") < at("coolify/install.sh"));
     assert.ok(at("coolify/install.sh") < at("phase-a-done"));
 });
 
@@ -96,4 +100,23 @@ test("apt waits for the lock that first-boot upgrades hold, instead of failing",
     const s = script();
     assert.match(s, /DPkg::Lock::Timeout "300";/);
     assert.ok(s.indexOf("DPkg::Lock::Timeout") < s.indexOf("apt-get"));
+});
+
+test("the tooling section is there only when the spec asks for it", () => {
+    const withTooling = script();
+    const without = script({ installTooling: false });
+    assert.match(withTooling, /deb\.nodesource\.com\/setup_22\.x/);
+    assert.match(withTooling, /apt-get -o Acquire::ForceIPv4=true install -y nodejs/);
+    assert.match(withTooling, /npm install -g @anthropic-ai\/claude-code/);
+    for (const needle of ["nodesource", "nodejs", "claude-code", "npm "]) {
+        assert.ok(!without.includes(needle), `the script without tooling mentions ${needle}`);
+    }
+    // The skills install is Phase B's, where a failure can be run again.
+    assert.ok(!/skills add/.test(withTooling));
+    // Nothing is written into /root that coolify-devops's scaffolder refuses.
+    assert.ok(!/AGENTS\.md|CLAUDE\.md|instance\.yaml|\/root\/docs|\/root\/stacks/.test(withTooling));
+});
+
+test("the launchpad's own Hetzner token never reaches user-data", () => {
+    assert.ok(!/HCLOUD_TOKEN/.test(script()));
 });

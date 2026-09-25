@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "launch": "tsx scripts/launch.ts",
+    "check-server": "tsx scripts/check.ts",
+    "retire": "tsx scripts/retire.ts",
     "test": "node --import tsx --test tests/unit/*.test.mjs tests/unit/*.test.ts",
     "typecheck": "tsc -p . --noEmit",
     "preview:offline": "sh tests/offline-preview.sh",

@@ -70,17 +70,22 @@ This is the format the launchpad prints and writes to `servers/<name>.block.txt`
 Launched by coolify-launchpad
 Coolify:        http://localhost:8000 on the host   (from the tailnet: http://<tailnet-ip>:8000)
 Server:         Hetzner <type>, <location>, Ubuntu 24.04, public IP <ip>
-Tailnet:        <name>.<tailnet>.ts.net, tag:server, key expiry disabled, Tailscale SSH on and granted to <group>
+Tailnet:        <name>.<tailnet>.ts.net, tag:server, key expiry disabled, Tailscale SSH on and granted to root, proved from the operator's machine
 Public lane:    none | <suffix> (80 and 443 open)
 Dashboard:      tailnet | github (8000 open to GitHub's hook ranges) | internet (8000 open; 2FA confirmed by you, not verified)
+Admin:          created by you over the tailnet; Coolify's registration page closed after it | created by you over the tailnet, confirmed by you, not verified
 Firewall:       Hetzner firewall "coolify", 22 closed; probe from the operator's machine matched the expectation table
-Env file:       /root/.config/coolify-devops.env, mode 600, sourced by .bashrc; the token line is still to fill
+Env file:       /root/.config/coolify-devops.env, mode 600, sourced by .bashrc; the token line is still to fill | the token line is set
 On the box:     Node 22, git, jq, Claude Code, coolify-devops skills in /root | git, jq only
 Next:           on the server, run /setup-coolify-devops; its step 1 interview confirms this block, and once the
                 token is in the env file, a new session resumes at its step 2
 ```
 
-After the block comes a list headed "Still yours to do". Each item carries the exact console path or command. None is marked done, because the launchpad cannot verify a console step it did not perform.
+The Tailnet line names root rather than a group. The launchpad cannot read the tailnet policy, so it cannot say which group the grant names. What it can say is that root on the node answered Tailscale SSH from this computer with every key method switched off. The Admin line says how the launch knew the account existed: Coolify's `/register` page stopped answering 200, or the person said so with `--admin-created`. When only `127.0.0.1:8000` answers on the box, the Coolify line and the env file both use that address instead of `localhost`.
+
+After the block comes a list headed "Still yours to do". Each item carries the exact console path or command. None is marked done, because the launchpad cannot verify a console step it did not perform. The list follows the answers: the Coolify token until it is set, signing in to Claude Code or installing Node, the tailnet policy entries and OAuth client that `/setup-coolify-devops` hands over as its precondition 3, the DNS token when there is a public lane, and the GitHub App in `github` or `internet` mode. In `github` mode that last item says the registration round trip needs the person's own IP on the 8000 rule for one step, as coolify-devops's `provisioning.md` describes. An optional last item covers a separate Hetzner token for coolify-devops, never the launchpad's own.
+
+The launch writes the block and the list together to `servers/<name>.block.txt`, which Git ignores, and `/check-server` prints that file again after its table.
 
 ## When the launch stops
 

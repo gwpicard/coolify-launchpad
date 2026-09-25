@@ -50,6 +50,13 @@ runs Phase B, and prints the server block.
 null, SSH on, and the SSH grant working from here), Coolify answering on the
 tailnet, the env file present, and Node, git, jq and Claude Code present on the box.
 It prints one table with the broken things first, then the server block again.
+The script behind it is `npm run check-server -- --server <name>`. It also reads
+the live firewall rules through the Hetzner API and compares them with the lane
+table, using GET requests only. On the box it runs only commands that print: the
+env file's mode, whether `.bashrc` sources it, and whether the token is set, which
+it learns by sourcing the file in a subshell and printing "set" or "unset". A
+missing token is a to-do, not a fault. It does not look for `AGENTS.md` and the
+rest in `/root`, because once `/setup-coolify-devops` has run they belong there.
 
 `/retire-server` warns that `/data/coolify` and every hosted tool on the box will
 be destroyed, requires the person to type the server name, runs `tailscale logout`
@@ -57,6 +64,21 @@ over Tailscale SSH, runs `pulumi destroy` and removes the stack, then hands over
 console step "Machines, the node, Remove" as a step still to do. Logout expires the
 node's key; it does not delete the machine, and the launchpad holds no `devices:core`
 credential to do that.
+
+The script behind it is `npm run retire -- --server <name>`. Before it asks
+anything, it checks that the launchpad made the server. The local stack must
+exist, every resource in it must belong to the `coolify-launchpad` project and be
+one of the types the program creates, and its server and firewall must carry the
+labels `purpose=coolify` and `server=<name>`. The live Hetzner server of that
+name must carry the same labels and the id the stack holds. Anything else is
+refused with nothing changed. The typed name comes from a prompt in a terminal,
+or from `--confirm <typed name>`, which is how the skill passes on what the
+person typed. Without either it destroys nothing. Logout drops the SSH session
+it runs in, so it is started detached, and the retire then waits up to a minute
+for the node to stop answering. A node it cannot find, or one that still
+answers, does not stop the retire, because the console step covers it. Last, it
+removes `servers/<name>.yaml` and `servers/<name>.block.txt` and keeps
+`.env.<name>`, which holds the person's own Hetzner token and passphrase.
 
 There is no fourth command. Reconfiguring a running server is coolify-devops's job.
 
@@ -102,7 +124,9 @@ rather than typed. The file itself must be readable by its owner only; a copy of
 `.env.example` arrives at mode 644, so the check names the `chmod 600` to run. A
 key followed only by a comment, the way `.env.example` ships, counts as not set.
 The check reports key names and nothing else. The values go from the file into
-the `pulumi` process's environment and nowhere else.
+the `pulumi` process's environment, and `HCLOUD_TOKEN` also into the
+Authorization header of the launchpad's own Hetzner API calls in step 7, the
+check and the retire. They go nowhere else, and no error message carries one.
 
 `pulumi` is on the path, `node` is version 20 or newer, and `ssh` exists. The
 Tailscale command is `tailscale` on the path or, on a Mac with the App Store
@@ -170,10 +194,12 @@ The sections, in order:
    decoded into a mode 600 file under `/run` and passed as
    `--auth-key=file:<path>`, so it never appears in the process list; the file is
    removed afterwards, and a `trap` removes it if `tailscale up` fails.
-3. `tooling.sh` (not built yet) installs Node 22 from NodeSource and Claude Code with `npm i -g
+3. `tooling.sh` installs Node 22 from NodeSource and Claude Code with `npm install -g
    @anthropic-ai/claude-code`. It is included only when question 5 was yes. It
    still belongs in user-data because it is decided before creation and never
-   changes.
+   changes. The NodeSource setup script is fetched with `curl -4` and then run,
+   and `npm` runs with `--dns-result-order=ipv4first`, for the same dead IPv6
+   route as the rest of Phase A.
 4. `coolify.sh` runs Coolify's installer with a positional version argument. That
    the installer accepts one, and that it requires root, are to be confirmed in
    the first rehearsal; the version is pinned once they are. Until then
@@ -279,38 +305,59 @@ Each step is a progress event:
    `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/register`
    without `-L` until it stops answering 200; Coolify closes registration after
    the first user and redirects. That behaviour is to be confirmed in the first
-   rehearsal; if it does not hold, the step asks the person to confirm instead. In
-   `internet` mode the person must also type `2fa on` before step 7.
+   rehearsal. The wait lasts 20 minutes. If it runs out, the launch stops and
+   names `--resume --admin-created`, which is how the person confirms the account
+   instead, and the block then says "confirmed by you, not verified". In
+   `internet` mode the person must also type `2fa on`, which the skill passes on
+   as `--two-factor-on`. Without it the launch stops before step 7, with nothing
+   opened.
 5. Write `/root/.config/coolify-devops.env` at mode 600, only if it is absent,
    with `export COOLIFY_BASE_URL=http://localhost:8000` and a commented
-   placeholder line for `COOLIFY_ACCESS_TOKEN`. Append `.
+   placeholder line for `COOLIFY_ACCESS_TOKEN`. If step 1 found that only
+   `127.0.0.1:8000` answers, the URL is that instead. Append `.
    ~/.config/coolify-devops.env` to `/root/.bashrc` if it is not there. The
    launchpad's own `HCLOUD_TOKEN` is never copied to the server; it is read and
    write, and a read-write token on the host can delete the host. The block says a
    read-only one is optional.
 6. If question 5 was yes, run `cd /root && npx -y skills add
    KasperHonore/coolify-devops -a claude-code -y`. The first `-y` is for `npx`
-   itself, since there is no terminal. `/root` is left free of `AGENTS.md`,
+   itself, since there is no terminal. Its output goes to
+   `/var/log/coolify-launchpad-skills.log`, and a failure quotes the last lines.
+   `/root` is left free of `AGENTS.md`,
    `CLAUDE.md`, `instance.yaml`, `docs/` and `stacks/`, because coolify-devops's
-   scaffolder refuses to run when any of those exists. Signing in to Claude Code
-   is the person's step.
+   scaffolder refuses to run when any of those exists. The step then reads the
+   box back in one round trip and stops if any of those is there, or if Node 18
+   or newer, Claude Code or `/root/skills-lock.json` is missing when the tooling
+   was asked for. Signing in to Claude Code is the person's step.
 7. Apply the lane firewall through the Hetzner API `set_rules` call on the firewall
    named `coolify`, inbound rules only, with the descriptions coolify-devops's
    `provisioning.md` uses. The rules per lane are in
    [server-model.md](server-model.md). Port 22 is removed here. In `tailnet` mode
-   with no public lane the rule list is empty.
+   with no public lane the rule list is empty. In `github` mode the hook ranges
+   are fetched from GitHub first. The step refuses a `coolify` firewall that does
+   not carry this server's labels or is not attached to it, waits for Hetzner to
+   report the change applied, and reads the rules back to compare.
 8. Run the outside probe from the operator's machine, over ports 22, 80, 443, 3000,
-   8000, 6001 and 6002, and compare it to the expectation table. The block records
+   8000, 6001 and 6002, and compare it to the expectation table. A mismatch is
+   read again for up to a minute, then stops the launch. The block records
    that the probe ran from the operator's machine, which is on the tailnet.
    Traffic to the public address does not use the tailnet, but coolify-devops's
    runbook asks for a machine outside it, so the claim is stated as what it is.
    Then `curl -sI http://<tailnet-ip>:8000` from the operator's machine.
 9. Print the server block, and write it to `servers/<name>.block.txt` as well.
 
-`--resume` re-runs Phase B from step 1 over the second leg when port 22 is already
-closed. Every step is idempotent: the env file is never overwritten, the skills
-install is skipped when `/root/skills-lock.json` exists, and `set_rules` replaces
-the whole rule set each time.
+`--resume` skips `pulumi up` and re-runs Phase B from step 1. It asks this
+computer's Tailscale for the node's address with `tailscale ip -4 <name>`, and
+when it finds one, steps 1 and 2 run over the second leg, so a closed port 22
+does not matter. When it finds none, it falls back to the first leg. Every step
+is idempotent: the env file is never overwritten, the skills install is skipped
+when `/root/skills-lock.json` exists, and `set_rules` replaces the whole rule set
+each time.
+
+The steps run in `lib/launch-flow.ts`, which takes the SSH, Hetzner, GitHub and
+network calls as arguments. `scripts/launch.ts` passes the real ones. The unit
+tests pass stand-ins and run every step in order without a server, including a
+resume against an env file that already exists.
 
 ## What came from hermes-launchpad
 

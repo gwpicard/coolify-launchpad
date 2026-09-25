@@ -25,7 +25,8 @@ const secret = (value: unknown) => ({
     plaintext: JSON.stringify(value),
 });
 
-const userData = buildUserData({ serverName: server, tailscaleAuthKey: authKey });
+// servers/example.yaml, which the preview launches, asks for the tooling.
+const userData = buildUserData({ serverName: server, tailscaleAuthKey: authKey, installTooling: true });
 // The Hetzner provider stores user-data as the base64 of its SHA-1.
 const userDataHash = createHash("sha1").update(userData).digest("base64");
 // A throwaway key made here, because the TLS provider parses the stored PEM.

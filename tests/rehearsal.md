@@ -59,6 +59,27 @@ checked on every run, because the services behind them change without notice.
   the firewall or the env file.
 - `npm run launch -- --server <name> --resume` after 22 is closed completes over the
   tailnet and leaves the env file untouched.
+- `tailscale ip -4 <name>` on the operator's machine finds the new node, which is
+  how `--resume`, `/check-server` and `/retire-server` reach it.
+- Hetzner's `set_rules` call answers with an action that `GET
+  /firewalls/actions/<id>` can follow to `success`, and the rules it reads back
+  compare equal to what was sent, IPv6 ranges included. If Hetzner rewrites a
+  range, record how, and fold the normalisation into `lib/hetzner-firewall.ts`.
+- The probe from the operator's machine reads every port closed within a minute
+  of the rules changing, and `curl -sI http://<tailnet-ip>:8000` answers.
+- NodeSource's setup script and `npm install -g @anthropic-ai/claude-code` finish
+  in cloud-init, and `node --version` on the box reads 22.
+- `npx -y skills add` leaves none of `AGENTS.md`, `CLAUDE.md`, `instance.yaml`,
+  `docs/` or `stacks/` in `/root`, and writes `/root/skills-lock.json`.
+- `/setup-coolify-devops` step 1 accepts every answer in the server block without
+  asking again, the Tailnet line naming root rather than a group included.
+- `npm run check-server -- --server <name>` reports nothing broken on the new
+  server, with the Coolify token as its only to-do, and changes nothing.
+- `npm run retire -- --server <name>` refuses a wrong typed name, then, with the
+  right one, logs the node out (the detached `tailscale logout` runs after the
+  session closes, and the node stops answering), destroys the server, the SSH key
+  and the firewall, removes the stack and the two record files, and keeps
+  `.env.<name>`.
 - No token value appears anywhere in either session's transcript.
 
 ## Before the first real run
@@ -92,16 +113,50 @@ The substrate (the spec, the env check, the Pulumi program, cloud-init sections
   Tailscale or Pulumi Cloud. The Hetzner provider refuses to start unless the
   token is exactly 64 characters, so the stand-in is that long.
 
-The first real run is still pending. Until it has happened, nothing here is
-claimed to work on Hetzner. It must reach "SSH grant proved" with
-`npm run launch -- --server <name>` and then confirm the facts above that a
-laptop cannot: the installer's version argument and root requirement, the type
-names and prices, apt over IPv4, `cloud-init status` on a failure, what a real
-node reports to step 2, and the SSH grant with key methods off.
+Phase B steps 4 to 9, the tooling section, the check and the retire have passed
+`npm run check` without a server:
 
-Until `/retire-server` exists, the server is destroyed by hand from the
-repository folder. The first line loads the secrets into the shell without
-printing them:
+- The six combinations of public lane and dashboard exposure give exactly the
+  rule sets in `docs/server-model.md`, with an empty list for `tailnet` and no
+  public lane, and no combination opens 22, 3000, 6001 or 6002. GitHub's hook
+  ranges come from a saved copy of GitHub's meta answer in
+  `tests/fixtures/github-meta.json`, and an answer with no ranges, or one as wide
+  as `0.0.0.0/0`, is refused.
+- The Hetzner calls run against a stand-in that answers only the calls the
+  launchpad makes: find the firewall, `set_rules`, follow the action, read back.
+  A `coolify` firewall without this server's labels, or attached to another
+  server, gets no `set_rules` at all. A read-back that differs stops the step.
+  No error message carries the token.
+- The probe tells an open port on this computer from a closed one, and a
+  mismatch names each port.
+- The env file script runs for real against a folder on this computer: written
+  at mode 600, the `.bashrc` line added once, a second run leaves the file byte
+  for byte, and a file the person already filled is never read out or changed.
+- The whole of Phase B runs in order against stand-ins, in `github` mode with no
+  public lane (the campaign's answers: `cpx22`, `nbg1`, tooling installed), and
+  ends in the block. A resume leaves the env file untouched and skips the skills
+  install. `internet` mode stops before the firewall until `--two-factor-on`. A
+  probe mismatch renders the failure block with resume and retire as the ways
+  forward.
+- The block carries every label of the template in `docs/positioning.md`, in
+  order.
+- The check sends only GET requests to Hetzner and only read commands to the
+  box. The retire refuses a missing stack, a stack from another project or with
+  a resource type the program never creates, an unlabelled server and a live
+  server whose id differs from the stack's, all before it asks for the name. A
+  wrong, empty or near-miss name destroys nothing.
+
+The first real run is still pending. Until it has happened, nothing here is
+claimed to work on Hetzner. It must run `npm run launch -- --server <name>` in
+`github` mode with no public lane to the block, and then confirm the facts above
+that a laptop cannot, in particular: the `/register` behaviour, `set_rules` and
+its read-back, the probe reading every port closed, `npx -y skills add` over SSH,
+a `--resume` after 22 has closed, `/setup-coolify-devops` step 1 and step 2's
+firewall check with no gap recorded, and `npm run retire` taking the server down.
+
+If `npm run retire` refuses a server that should be the launchpad's, or fails
+partway, the server is destroyed by hand from the repository folder. The first
+line loads the secrets into the shell without printing them:
 
 ```bash
 set -a; . ./.env.<name>; set +a

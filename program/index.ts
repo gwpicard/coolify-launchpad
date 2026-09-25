@@ -29,7 +29,7 @@ const spec = loadSpec(serverName, repoRoot);
 
 // Marked secret so the base64 auth key inside it is encrypted in the state
 // file rather than stored in plain text.
-const userData = pulumi.secret(buildUserData({ serverName: spec.name, tailscaleAuthKey }));
+const userData = pulumi.secret(buildUserData({ serverName: spec.name, tailscaleAuthKey, installTooling: spec.install_tooling }));
 
 const sshKeyPair = new tls.PrivateKey("coolify-ssh-key", { algorithm: "ED25519" });
 

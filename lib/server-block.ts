@@ -1,0 +1,186 @@
+import { writeFileSync, mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import type { ServerSpec } from "./spec.js";
+
+/**
+ * The two blocks a launch ends with, in the formats docs/positioning.md owns:
+ * the server block and its "Still yours to do" list when a launch finishes,
+ * and "Not launched yet" when it stops.
+ */
+
+export const ENV_FILE = "/root/.config/coolify-devops.env";
+
+export interface ServerBlockFacts {
+    spec: ServerSpec;
+    publicIp: string;
+    tailnetIp: string;
+    /** The node's MagicDNS name, for example alpha.tail1234.ts.net. */
+    dnsName: string;
+    /** What the env file points at: localhost:8000, or 127.0.0.1:8000 when localhost did not answer on the box. */
+    coolifyUrl: string;
+    /** Only in internet mode: the person typed that 2FA is on. */
+    twoFactorConfirmed: boolean;
+    /** How the admin account was known to exist. */
+    adminCheck: "register-closed" | "confirmed-by-you";
+    /** The env file's mode as read on the box, for example "600". */
+    envMode: string;
+    /** Whether COOLIFY_ACCESS_TOKEN is already set in the env file. Presence only. */
+    envTokenSet: boolean;
+    /** `node --version` on the box, when the tooling was installed. */
+    nodeVersion?: string;
+}
+
+const LABEL_WIDTH = 16;
+
+function line(label: string, value: string): string {
+    return `${`${label}:`.padEnd(LABEL_WIDTH, " ")}${value}`;
+}
+
+function continuation(value: string): string {
+    return `${" ".repeat(LABEL_WIDTH)}${value}`;
+}
+
+export function renderServerBlock(f: ServerBlockFacts): string {
+    const { spec } = f;
+    const publicLane = spec.public_lane === "none" ? "none" : `${spec.public_lane} (80 and 443 open)`;
+    const dashboard =
+        spec.dashboard === "tailnet"
+            ? "tailnet"
+            : spec.dashboard === "github"
+                ? "github (8000 open to GitHub's hook ranges)"
+                : `internet (8000 open; 2FA ${f.twoFactorConfirmed ? "confirmed by you, not verified" : "NOT confirmed"})`;
+    const nodeMajor = f.nodeVersion?.replace(/^v/, "").split(".")[0];
+    const onTheBox = spec.install_tooling
+        ? `Node ${nodeMajor ?? "22"}, git, jq, Claude Code, coolify-devops skills in /root`
+        : "git, jq only";
+    const envToken = f.envTokenSet ? "the token line is set" : "the token line is still to fill";
+    return [
+        "Launched by coolify-launchpad",
+        line("Coolify", `${f.coolifyUrl} on the host   (from the tailnet: http://${f.tailnetIp}:8000)`),
+        line("Server", `Hetzner ${spec.hetzner.type}, ${spec.hetzner.location}, Ubuntu 24.04, public IP ${f.publicIp}`),
+        line(
+            "Tailnet",
+            `${f.dnsName}, tag:server, key expiry disabled, Tailscale SSH on and granted to root, proved from the operator's machine`,
+        ),
+        line("Public lane", publicLane),
+        line("Dashboard", dashboard),
+        line(
+            "Admin",
+            f.adminCheck === "register-closed"
+                ? "created by you over the tailnet; Coolify's registration page closed after it"
+                : "created by you over the tailnet, confirmed by you, not verified",
+        ),
+        line("Firewall", `Hetzner firewall "coolify", 22 closed; probe from the operator's machine matched the expectation table`),
+        line("Env file", `${ENV_FILE}, mode ${f.envMode}, sourced by .bashrc; ${envToken}`),
+        line("On the box", onTheBox),
+        line("Next", "on the server, run /setup-coolify-devops; its step 1 interview confirms this block, and once the"),
+        continuation("token is in the env file, a new session resumes at its step 2"),
+    ].join("\n");
+}
+
+/**
+ * The console steps and commands the launchpad cannot do or verify. None is
+ * marked done, because the launchpad did not perform it.
+ */
+export function stillYoursToDo(f: ServerBlockFacts): string[] {
+    const { spec } = f;
+    const items: string[] = [];
+    if (!f.envTokenSet) {
+        items.push(
+            `Create the Coolify API token at http://${f.tailnetIp}:8000, Keys & Tokens, API tokens, with the read, write ` +
+            `and deploy scopes and never root. Add it to ${ENV_FILE} on the server with the command ` +
+            `/setup-coolify-devops prints, then open a new shell. It never goes into a chat session.`,
+        );
+    }
+    if (spec.install_tooling) {
+        items.push(`Sign in to Claude Code on the server: ssh root@${f.tailnetIp}, then claude.`);
+    } else {
+        items.push(
+            `Install Node 22 on the server (coolify-devops needs Node 18 or newer), then Claude Code, then ` +
+            `cd /root && npx -y skills add KasperHonore/coolify-devops -a claude-code -y.`,
+        );
+    }
+    items.push(
+        "In the tailnet policy, the autoApprovers.services entry and the Tailscale OAuth client for the registrar. " +
+        "/setup-coolify-devops hands both over as its precondition 3, with the exact block and the console link.",
+    );
+    if (spec.public_lane !== "none") {
+        items.push(
+            `The DNS token and the wildcard record for *.${spec.public_lane}, which /setup-coolify-devops asks for ` +
+            `as its precondition 4.`,
+        );
+    }
+    if (spec.dashboard !== "tailnet") {
+        items.push(
+            "After coolify-devops has accepted the server: the GitHub App, from Coolify's Sources page." +
+            (spec.dashboard === "github"
+                ? " In github mode the registration round trip needs your own public IP on the 8000 rule for that " +
+                "one step; coolify-devops's provisioning.md, section 6, says how, and to remove it afterwards."
+                : ""),
+        );
+    }
+    items.push(
+        "Optional: for coolify-devops to manage the firewall from the server, create a separate Hetzner token " +
+        "(read-only is enough to verify) and add it to the env file as HCLOUD_TOKEN. Never the launchpad's own token.",
+    );
+    return items;
+}
+
+export function renderHandOver(f: ServerBlockFacts): string {
+    return [
+        renderServerBlock(f),
+        "",
+        "Still yours to do",
+        ...stillYoursToDo(f).map((s) => `- ${s}`),
+    ].join("\n");
+}
+
+/** Where the block is written: servers/<name>.block.txt, which Git ignores. */
+export function blockPath(name: string, repoRoot: string): string {
+    return resolve(repoRoot, "servers", `${name}.block.txt`);
+}
+
+export function writeHandOver(name: string, repoRoot: string, text: string): string {
+    const path = blockPath(name, repoRoot);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, text.endsWith("\n") ? text : `${text}\n`);
+    return path;
+}
+
+export interface Stopped {
+    /** The last step that passed, or "nothing yet". */
+    reached: string;
+    /** One line, quoting the log or probe. */
+    finding: string;
+    /** The ways forward, joined with " | ". */
+    then: string[];
+}
+
+/** The failure block from docs/positioning.md. */
+export function renderStopped(s: Stopped): string {
+    return [
+        "Not launched yet, coolify-launchpad",
+        `Reached:   ${s.reached}`,
+        `Finding:   ${s.finding}`,
+        `Then:      ${s.then.join(" | ")}`,
+    ].join("\n");
+}
+
+/** The two ways forward once a server may exist. */
+export function waysForward(name: string): string[] {
+    return [`npm run launch -- --server ${name} --resume`, `/retire-server ${name}`];
+}
+
+/**
+ * The failure block for an error thrown by a step. `reached` is the last step
+ * that passed. Before anything was created the only way forward is to fix the
+ * finding and launch again; after, it is to resume or to retire.
+ */
+export function stoppedFor(err: unknown, reached: string, name: string, serverMayExist: boolean): Stopped {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+        reached,
+        finding: message.split("\n")[0],
+        then: serverMayExist ? waysForward(name) : [`fix the finding, then npm run launch -- --server ${name}`],
+    };
+}
