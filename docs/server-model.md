@@ -28,17 +28,26 @@ Coolify's own dashboard and API live on port 8000 of the host. Who may reach it 
 
 The firewall is Hetzner's cloud firewall, named `coolify`, sitting outside the VM. It is an allow list. Everything not listed is dropped. There are no outbound rules, which keeps all outbound traffic open for Tailscale, Docker pulls and certificate issuance.
 
-The inbound rules depend on the two answers above. The descriptions are the ones coolify-devops's `provisioning.md` renders, and the launchpad sends them unchanged.
+The inbound rules depend on the two answers above. The descriptions are the strings coolify-devops's `provisioning.md` sends in its own API call, and the launchpad sends them unchanged, so a rule set the launchpad applied reads the same as one `/setup-coolify-devops` would apply. "Anywhere" means `0.0.0.0/0` and `::/0`.
 
-| Inbound rule | Source | When | Description |
+| Inbound rule | Source | When | Description sent | Why |
+|---|---|---|---|---|
+| TCP 80 | anywhere | A public suffix is set | `public lane: ACME + redirect` | Let's Encrypt's HTTP challenge and the HTTP to HTTPS redirect |
+| TCP 443 | anywhere | A public suffix is set | `public lane: Traefik` | The public lane, through Traefik |
+| TCP 8000 | GitHub's webhook ranges | `github` mode | `Coolify: GitHub webhooks` | Push-to-deploy webhooks |
+| TCP 8000 | anywhere | `internet` mode | `Coolify dashboard (internet mode)` | The dashboard and push-to-deploy webhooks |
+| none | | `tailnet` mode with no public lane | | Nothing inbound. The tailnet needs no open port, and there is no public lane. |
+
+The six combinations of the two answers give these rule sets, and `tests/unit/firewall.test.ts` holds each one:
+
+| Public lane | `tailnet` | `github` | `internet` |
 |---|---|---|---|
-| TCP 80 | anywhere | A public suffix is set | Let's Encrypt HTTP challenge and the HTTP to HTTPS redirect (public lane) |
-| TCP 443 | anywhere | A public suffix is set | The public lane, via Traefik |
-| TCP 8000 | GitHub's webhook ranges | `github` mode | Push-to-deploy webhooks |
-| TCP 8000 | anywhere | `internet` mode | The Coolify dashboard and push-to-deploy webhooks |
-| none | | `tailnet` mode with no public lane | Nothing inbound. The tailnet needs no open port, and there is no public lane. |
+| none | no rules | 8000 from GitHub | 8000 from anywhere |
+| a suffix | 80, 443 | 80, 443, 8000 from GitHub | 80, 443, 8000 from anywhere |
 
-GitHub's webhook ranges come from `GET https://api.github.com/meta`, key `hooks`. They change rarely but do change, so the launchpad fetches them at launch rather than hardcoding them.
+GitHub's webhook ranges come from `GET https://api.github.com/meta`, key `hooks`, which needs no token. They change rarely but do change, so the launchpad fetches them at launch rather than hardcoding them. It refuses an answer with no ranges, or one that lists a range as wide as `0.0.0.0/0`.
+
+The launchpad applies the rules in Phase B with Hetzner's `set_rules` call, which replaces the whole set, and then reads the firewall back and compares. Before it changes anything it checks that the firewall named `coolify` carries the labels `purpose=coolify` and `server=<name>` and is attached to this server. A `coolify` firewall without them was not made by this launch, and its rules are left alone.
 
 Deliberately not in the list:
 
@@ -67,6 +76,8 @@ done
 | 3000, 6001, 6002 | closed | Always |
 
 Then, from the operator's machine on the tailnet, `curl -sI http://<tailnet-ip>:8000` must answer.
+
+The launchpad makes the same TCP connection attempt from Node rather than from bash, with the same three-second limit. A firewall change can take a moment to reach Hetzner's edge, so a probe that disagrees with the table is read again for up to a minute before the launch stops on it.
 
 The runbook asks for this probe from a machine that is not on the tailnet. The launchpad runs it from the operator's machine, which is on the tailnet. Traffic to the public IP does not use the tailnet, so the result is the same, but the server block says where the probe ran rather than claiming the runbook's condition.
 
@@ -108,10 +119,16 @@ Whether Coolify's registration page stops answering 200 after the first user is 
 
 | Symptom | Diagnosis | Fix |
 |---|---|---|
-| `curl http://localhost:8000` fails on the box while `curl http://127.0.0.1:8000` works | `localhost` resolves to IPv6 on this image and Coolify bound IPv4 only | The launchpad checks both during its first step. If it reports this, the env file's URL is wrong for this box; set `COOLIFY_BASE_URL=http://127.0.0.1:8000` instead. |
+| `curl http://localhost:8000` fails on the box while `curl http://127.0.0.1:8000` works | `localhost` resolves to IPv6 on this image and Coolify bound IPv4 only | The launchpad checks both during its first step, and when only `127.0.0.1` answers it writes `COOLIFY_BASE_URL=http://127.0.0.1:8000` into the env file and says so in the block. An env file written before that is left alone; change its URL by hand. |
 | `apt-get` or the installer hangs with no output | A dead IPv6 route on the Hetzner image; names resolve to AAAA records and packets go nowhere | Every fetch in the launchpad's first phase forces IPv4. If you are on the box by hand, use `apt-get -o Acquire::ForceIPv4=true` and `curl -4`. |
 | The launch waits past 20 minutes for the first phase | A slow mirror, a slow image pull, or the first phase failed partway | Over Tailscale SSH, read `/var/log/cloud-init-output.log` and `cloud-init status`. Fix what stopped, then `npm run launch -- --server <name> --resume`. |
 | `ssh root@<tailnet-ip>` is refused, `tailscale status` shows the node up | The tailnet policy has no `ssh` rule with `tag:server` as destination | Paste the policy block the preflight printed, then run the proof again. Nothing has closed yet at this step. |
 | `.MagicDNSSuffix` or `.CertDomains` is empty in `tailscale status --json` | MagicDNS or HTTPS is not enabled on the tailnet | In the Tailscale admin console, DNS, enable MagicDNS, then enable HTTPS. Then `--resume`. |
 | A machine named after a retired server still shows offline in the Tailscale console | `tailscale logout` expires the key; it does not delete the machine | In the console, Machines, the entry, Remove. `/retire-server` prints this step. |
-| The probe reads 8000 open in `github` mode from the operator's machine | The firewall rule for 8000 has a wider source than GitHub's ranges, or the rules were not applied | `/check-server` reads the live rules back. Compare the sources with `GET https://api.github.com/meta`, key `hooks`, and re-apply. |
+| The probe reads 8000 open in `github` mode from the operator's machine | The firewall rule for 8000 has a wider source than GitHub's ranges, or the rules were not applied | `/check-server` reads the live rules back and compares them with GitHub's current ranges. `npm run launch -- --server <name> --resume` applies them again. |
+| The launch waits at "Waiting for the Coolify admin account" after the account exists | Coolify's `/register` page still answers 200 after the first user, which the launch reads as registration still open | Run `npm run launch -- --server <name> --resume --admin-created`. The block then says the account was confirmed by you. |
+| The launch stops before the firewall in `internet` mode | Port 8000 would open to everyone, and nobody has said two-factor authentication is on | Turn it on in Coolify under Settings, General, then `--resume --two-factor-on`. |
+| The launch stops at "Checking /root and the tools on the box" | `/root` holds `AGENTS.md`, `CLAUDE.md`, `instance.yaml`, `docs/` or `stacks/`, or the tooling did not install | Move the named files out of `/root`, or read `/var/log/cloud-init-output.log` and `/var/log/coolify-launchpad-skills.log`, then `--resume`. |
+| "Refusing to change the firewall" or "Refusing to retire" | A firewall or stack named for this server lacks the labels `purpose=coolify` and `server=<name>`, or belongs to another project | Nothing was changed. The launchpad acts only on what it created. If the resource is yours, handle it in the Hetzner console. |
+
+No row in this table has been seen on a real server yet. The first four come from hermes-launchpad and coolify-devops, the rest from the code and its offline tests. The first real rehearsal confirms or corrects each one, and `tests/rehearsal.md` records what it found.

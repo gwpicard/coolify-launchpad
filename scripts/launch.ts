@@ -1,68 +1,65 @@
 #!/usr/bin/env tsx
 /**
- * `npm run launch -- --server <name> [--json]`
+ * `npm run launch -- --server <name> [--resume] [--admin-created] [--two-factor-on] [--json]`
  *
  * Reads servers/<name>.yaml and .env.<name>, runs the preflight, creates the
- * server with Pulumi, waits for Phase A, verifies the tailnet node, and proves
- * the SSH grant from this computer. It stops there: Phase B's later steps
- * (the admin account, the env file, the skills install, the lane firewall,
- * the probe and the server block) arrive in a later version.
+ * server with Pulumi, and runs Phase B to the server block: Phase A finished,
+ * the tailnet node verified, the SSH grant proved, the admin account created
+ * by the person, the env file, the skills, the lane firewall, the probe, and
+ * the block written to servers/<name>.block.txt.
  *
- * Running it again is safe. `pulumi up` changes nothing on a server that
- * exists, even after COOLIFY_VERSION is pinned or the auth key is renewed,
- * because the program ignores later changes to user-data. Every step after it
- * only reads.
+ * `--resume` skips `pulumi up` and runs Phase B again from its first step.
+ * When this computer can find the server on the tailnet it goes over Tailscale
+ * SSH, so it works after port 22 has closed. Every step can be run again: the
+ * env file is never overwritten, the skills install is skipped once it has
+ * happened, and the firewall rules are replaced as a whole.
+ *
+ * Running it without `--resume` is also safe. `pulumi up` changes nothing on a
+ * server that exists, because the program ignores later changes to user-data.
  */
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadSpec, envPath, type ServerSpec } from "../lib/spec.js";
-import { requireEnvFile, secretsForChild } from "../lib/env.js";
+import { REQUIRED_SECRETS, SECRETS_AFTER_LAUNCH, requireEnvFile, secretsForChild } from "../lib/env.js";
 import { step, type OnProgress, type ProgressEvent } from "../lib/progress.js";
 import { ensureStack, runPulumi, stackOutput, type PulumiContext } from "../lib/pulumi.js";
-import { withStagedKey, type SshTarget } from "../lib/ssh.js";
+import { remote, withStagedKey, type SshTarget } from "../lib/ssh.js";
 import { waitForPhaseA, verifyTailnet, proveSshGrant } from "../lib/phase-b.js";
-import { makeProgressRenderer, renderStopped, renderGrantProved } from "./output.js";
+import { fetchGithubHooks, HetznerApi, httpStatus, probePort } from "../lib/hetzner-firewall.js";
+import { stoppedFor, writeHandOver } from "../lib/server-block.js";
+import { chooseFirstLeg, phaseB, type PhaseBDeps, type PhaseBResult } from "../lib/launch-flow.js";
+import { commandWorks, tailnetIpOf, tailscaleCommand, MAC_APP_TAILSCALE } from "../lib/local-tailscale.js";
+import { makeProgressRenderer, renderStopped } from "./output.js";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+
+const USAGE = "Usage: npm run launch -- --server <name> [--resume] [--admin-created] [--two-factor-on] [--json]";
 
 interface Args {
     server: string;
     json: boolean;
+    resume: boolean;
+    adminCreated: boolean;
+    twoFactorOn: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
     let server: string | undefined;
-    let json = false;
+    const flags = { json: false, resume: false, adminCreated: false, twoFactorOn: false };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === "--server") server = argv[++i];
-        else if (a === "--json") json = true;
-        else throw new Error(`Unknown argument "${a}". Usage: npm run launch -- --server <name> [--json]`);
+        else if (a === "--json") flags.json = true;
+        else if (a === "--resume") flags.resume = true;
+        else if (a === "--admin-created") flags.adminCreated = true;
+        else if (a === "--two-factor-on") flags.twoFactorOn = true;
+        else throw new Error(`Unknown argument "${a}". ${USAGE}`);
     }
-    if (!server) throw new Error("Missing --server <name>. Usage: npm run launch -- --server <name> [--json]");
+    if (!server) throw new Error(`Missing --server <name>. ${USAGE}`);
     if (server === "example") {
         // servers/example.yaml and .env.example are the templates, both tracked.
         throw new Error("example is the template. Copy servers/example.yaml to servers/<name>.yaml and launch that name.");
     }
-    return { server, json };
-}
-
-function commandWorks(cmd: string, args: string[]): boolean {
-    const r = spawnSync(cmd, args, { stdio: "ignore", timeout: 30_000 });
-    return r.status === 0;
-}
-
-/**
- * The Tailscale command on this computer. The Mac App Store build puts no
- * `tailscale` on the path; its command sits inside the app instead.
- */
-const MAC_APP_TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
-
-function tailscaleCommand(): string | undefined {
-    if (commandWorks("tailscale", ["version"])) return "tailscale";
-    if (process.platform === "darwin" && existsSync(MAC_APP_TAILSCALE)) return MAC_APP_TAILSCALE;
-    return undefined;
+    return { server, ...flags };
 }
 
 /**
@@ -71,10 +68,10 @@ function tailscaleCommand(): string | undefined {
  * credential the launchpad does not hold, so the skill asks the person about
  * them, and steps 2 and 3 prove them on the real node.
  */
-function preflight(spec: ServerSpec): void {
+function preflight(spec: ServerSpec, keys: readonly string[]): void {
     const problems: string[] = [];
     try {
-        requireEnvFile(envPath(spec.name, repoRoot));
+        requireEnvFile(envPath(spec.name, repoRoot), keys);
     } catch (err) {
         problems.push((err as Error).message);
     }
@@ -95,47 +92,73 @@ function preflight(spec: ServerSpec): void {
     if (problems.length > 0) throw new Error(problems.join("\n"));
 }
 
-async function launch(args: Args, onProgress: OnProgress): Promise<string> {
+/** The real SSH, Hetzner, GitHub and network calls. The token goes into the Hetzner client and nowhere else. */
+function realDeps(hcloudToken: string): PhaseBDeps {
+    return {
+        waitForPhaseA: (leg) => waitForPhaseA(leg),
+        verifyTailnet,
+        proveSshGrant: (ip) => proveSshGrant(ip),
+        remote,
+        hetzner: new HetznerApi(hcloudToken),
+        fetchGithubHooks: () => fetchGithubHooks(),
+        probePort: (host, port) => probePort(host, port),
+        httpStatus: (url) => httpStatus(url),
+        writeHandOver: (server, text) => writeHandOver(server, repoRoot, text),
+    };
+}
+
+async function launch(args: Args, onProgress: OnProgress, markServerMayExist: () => void): Promise<PhaseBResult> {
     const spec = await step(onProgress, `Reading servers/${args.server}.yaml`, () => loadSpec(args.server, repoRoot));
-    await step(onProgress, `Checking this computer and .env.${spec.name}`, () => preflight(spec));
+    // A resume runs no `pulumi up`, so it never reads the auth key, which is
+    // spent once the server has joined and may have been deleted.
+    const keys = args.resume ? SECRETS_AFTER_LAUNCH : REQUIRED_SECRETS;
+    await step(onProgress, `Checking this computer and .env.${spec.name}`, () => preflight(spec, keys));
 
-    const ctx: PulumiContext = { repoRoot, server: spec.name, secrets: secretsForChild(envPath(spec.name, repoRoot)) };
+    const secrets = secretsForChild(envPath(spec.name, repoRoot), keys);
+    const ctx: PulumiContext = { repoRoot, server: spec.name, secrets };
+    const deps = realDeps(secrets.HCLOUD_TOKEN);
+    const flags = { adminCreated: args.adminCreated, twoFactorOn: args.twoFactorOn };
 
-    await step(onProgress, "Preparing the local Pulumi stack", () => ensureStack(ctx), (r) => r);
-    const publicIp = await step(
+    let publicIp: string;
+    if (args.resume) {
+        markServerMayExist();
+        publicIp = await step(
+            onProgress,
+            "Reading the server from the local Pulumi stack",
+            () => stackOutput(ctx, "ipv4Address"),
+            (ip) => `public IP ${ip}`,
+        );
+    } else {
+        await step(onProgress, "Preparing the local Pulumi stack", () => ensureStack(ctx), (r) => r);
+        markServerMayExist();
+        publicIp = await step(
+            onProgress,
+            `Creating the server on Hetzner (${spec.hetzner.type}, ${spec.hetzner.location})`,
+            () => {
+                runPulumi(ctx, ["up", "--yes", "--skip-preview", "--stack", spec.name]);
+                return stackOutput(ctx, "ipv4Address");
+            },
+            (ip) => `public IP ${ip}`,
+        );
+    }
+    const serverId = Number(stackOutput(ctx, "serverId"));
+
+    // On a resume the node is looked up on the tailnet, so port 22 may already
+    // be closed; Phase B then checks that the machine it found is this server.
+    // Otherwise leg one: the public IP with the key Pulumi made.
+    const first = await step(
         onProgress,
-        `Creating the server on Hetzner (${spec.hetzner.type}, ${spec.hetzner.location})`,
-        () => {
-            runPulumi(ctx, ["up", "--yes", "--skip-preview", "--stack", spec.name]);
-            return stackOutput(ctx, "ipv4Address");
-        },
-        (ip) => `public IP ${ip}`,
+        "Choosing how to reach the server",
+        () => chooseFirstLeg(args.resume, spec.name, publicIp, { tailnetIpOf, probePort }),
+        (l) => (l.kind === "tailnet" ? `over the tailnet at ${l.host}` : `over port 22 at ${publicIp}`),
     );
+    if (first.kind === "tailnet") {
+        return phaseB({ spec, publicIp, serverId, firstLeg: { host: first.host, user: "root" }, ...flags }, deps, onProgress);
+    }
     const privateKey = stackOutput(ctx, "privateKey", true);
-
-    return withStagedKey(privateKey, async (keyPath) => {
+    return withStagedKey(privateKey, (keyPath) => {
         const leg1: SshTarget = { host: publicIp, user: "root", keyPath };
-        await step(
-            onProgress,
-            "Waiting for cloud-init to finish and Coolify to answer (up to 20 minutes)",
-            () => waitForPhaseA(leg1),
-            (r) => (r.localhostAnswers ? undefined : "localhost:8000 does not answer on the box; 127.0.0.1:8000 does"),
-        );
-        const tailnet = await step(
-            onProgress,
-            "Verifying the tailnet node",
-            () => verifyTailnet(leg1, spec.name),
-            (t) => `${t.dnsName}, ${t.tailnetIp}`,
-        );
-        await step(onProgress, "Proving the SSH grant from this computer", () => proveSshGrant(tailnet.tailnetIp));
-        return renderGrantProved({
-            server: spec.name,
-            type: spec.hetzner.type,
-            location: spec.hetzner.location,
-            publicIp,
-            tailnetIp: tailnet.tailnetIp,
-            dnsName: tailnet.dnsName,
-        });
+        return phaseB({ spec, publicIp, serverId, firstLeg: leg1, ...flags }, deps, onProgress);
     });
 }
 
@@ -152,25 +175,20 @@ async function main(): Promise<void> {
     let serverMayExist = false;
     const onProgress = (e: ProgressEvent) => {
         if (e.status === "done") reached = e.step;
-        if (e.step.startsWith("Creating the server")) serverMayExist = true;
         render(e);
     };
     try {
-        const summary = await launch(args, onProgress);
-        if (args.json) process.stdout.write(JSON.stringify({ type: "result", status: "grant-proved", summary }) + "\n");
-        else process.stdout.write(`\n${summary}\n`);
+        const result = await launch(args, onProgress, () => (serverMayExist = true));
+        if (args.json) {
+            process.stdout.write(
+                JSON.stringify({ type: "result", status: "launched", block: result.text, stillYours: result.stillYours, path: result.path }) + "\n",
+            );
+        } else {
+            process.stdout.write(`\n${result.text}\n\nWritten to ${result.path}\n`);
+        }
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        const stopped = {
-            reached,
-            finding: message.split("\n")[0],
-            then: serverMayExist
-                ? [
-                    `npm run launch -- --server ${args.server}`,
-                    "pulumi destroy, as tests/rehearsal.md describes, until /retire-server lands",
-                ]
-                : [`fix the finding, then npm run launch -- --server ${args.server}`],
-        };
+        const stopped = stoppedFor(err, reached, args.server, serverMayExist);
         if (args.json) {
             process.stdout.write(JSON.stringify({ type: "result", status: "stopped", ...stopped, detail: message }) + "\n");
         } else {

@@ -32,9 +32,10 @@ skills/                   the three commands, one folder each, the canonical sou
   retire-server/          SKILL.md
 .claude/commands/         generated from skills/ by tools/build-adapters.sh; never hand-edited
 .agents/maintainer-skills/humanizer/   vendored writing skill; outside every skills folder on purpose
-lib/                      spec, env, secrets, ssh, progress, pulumi, tailnet, phase-b; later hetzner-firewall, server-block
+lib/                      spec, env, secrets, ssh, progress, pulumi, tailnet, local-tailscale, phase-b,
+                          launch-flow, hetzner-firewall, server-block, check, retire
 program/                  Pulumi.yaml, index.ts, cloud-init/build.ts and its snippets
-scripts/                  launch and output now, check and retire later: the dispatcher the skills call
+scripts/                  launch, check, retire and output: the dispatcher the skills call
 servers/                  example.yaml is tracked; every real server file is ignored
 docs/
   positioning.md          the three-way story and the block formats
@@ -43,7 +44,10 @@ docs/
   sources.md              borrowed ideas and where they came from
   maintaining.md          writing rules, one owner per concept, release steps
 tests/
-  unit/                   Node's test runner: cloud-init assembly, spec, env check, tailnet checks, harness
+  unit/                   Node's test runner: cloud-init assembly, spec, env check, tailnet checks, harness,
+                          the lane firewall, the blocks, Phase B against stand-ins, check and retire
+  unit/helpers/           stand-ins for the Hetzner API, GitHub's meta answer and a shell on the server
+  fixtures/               a saved copy of GitHub's meta answer, for the github rule
   offline-preview.sh      pulumi preview with stand-in secrets and local state; reaches no Hetzner, Tailscale or Pulumi service
   lib/existing-server-state.ts   the hand-built state of a running server that the offline preview plans against
   rules/                  prose guards built on tests/lib/rule-shape.sh
@@ -53,8 +57,9 @@ tools/                    build-adapters.sh and validate.sh
 .github/workflows/        check.yml: what CI runs on every push and pull request
 ```
 
-The substrate has landed: `lib/`, `program/` and `scripts/launch.ts` take a spec to a
-server whose SSH grant is proved, and no further. `tests/rules/` and each skill's
+The program has landed: `npm run launch` takes a spec to the server block,
+`npm run check-server` reads a server back, and `npm run retire` destroys one.
+None of it has run against a real server yet. `tests/rules/` and each skill's
 `references/` folder are empty until their slice lands. The three `SKILL.md` files exist so that every check
 runs for real from the first commit; each says the command is not built yet and
 stops. `CHANGELOG.md` says which slices are still to come.
@@ -94,7 +99,10 @@ base64 encoded, and nowhere else.
 The launchpad's own `HCLOUD_TOKEN` is read and write. It never goes to the server:
 a read-write token in a shell on the host can delete the host. If the person wants
 coolify-devops to manage the firewall from the server, that is a separate token
-they create, and the server block says so.
+they create, and the server block says so. On this machine the token goes to two
+places: the `pulumi` process's environment, and the Authorization header of the
+launchpad's own Hetzner API calls, held privately in `HetznerApi`. No error
+message or printed line carries it.
 
 Secrets live in `.env.<name>` here, mode 600, ignored by git. Nothing under
 `servers/` except `example.yaml` is tracked.
@@ -147,7 +155,7 @@ before it is saved.
 ## Checks
 
 ```bash
-npm test               # unit tests: cloud-init assembly, spec, env check, tailnet checks, harness
+npm test               # unit tests, all offline: cloud-init, spec, env, tailnet, harness, firewall, blocks, Phase B, check, retire
 npm run typecheck      # tsc --noEmit over lib/, program/, scripts/, tests/unit/
 npm run validate       # tools/validate.sh: skills-ref validate, version sync, adapter drift, prose scan
 npm run check          # test + typecheck + validate; what CI runs
