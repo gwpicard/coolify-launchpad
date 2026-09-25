@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a clone of coolify-launchpad on the operator's own computer, with the Pulumi CLI and the local state that launched the server. Needs network access to the Hetzner API.
 metadata:
   author: gwpicard
-  version: "0.0.0"
+  version: "0.1.0"
 ---
 
 # /retire-server
@@ -73,7 +73,9 @@ undone. Add that the machine is logged out of the tailnet and the firewall and
 SSH key are deleted too. On this computer the retire deletes `servers/<name>.yaml`
 and `servers/<name>.block.txt`, and `.env.<name>` stays.
 
-Then ask the person to type the server name to go ahead. Wait for their reply.
+Then ask the person to type the server name to go ahead, showing the name in
+code formatting, such as `<name>`, and saying that the reply is the bare name:
+not the IP address, and nothing after it. Wait for their reply.
 
 If the person would rather type it at a prompt themselves, give them this line
 to run in their own terminal, inside this folder, and stop here:
@@ -115,5 +117,5 @@ Then go through what is left for the person:
 
 If the result has `status: "stopped"` partway, show the detail and say what was
 and was not destroyed, as the progress lines showed it. The manual clean-up in
-[tests/rehearsal.md](../../tests/rehearsal.md), "Before the first real run",
+[tests/rehearsal.md](../../tests/rehearsal.md), "Taking a server down by hand",
 takes a server down by hand when the script cannot.

@@ -27,9 +27,8 @@ tells the whole story.
 | You need | Claude Code, Node 20 or newer, the Pulumi CLI, a Hetzner Cloud account with a read and write API token, and a Tailscale tailnet with MagicDNS and HTTPS enabled, with this computer on it. |
 | Install | Clone this repository. That is the whole install in this version. |
 | Then type | `/launch-server` |
-| How long a launch takes | One interview of six questions, then about fifteen minutes while the server builds, with one browser step in the middle. |
+| How long a launch takes | One interview of six questions, then about five minutes while the server builds, with one browser step about three minutes in. |
 | Where it runs | On your own computer, in the cloned folder. The server it makes is on Hetzner. |
-| Status | Pre-release. Not yet run against a real server. |
 | Licence | MIT |
 | Cost | Free. You pay for the server and the coding agent subscription. |
 
@@ -222,8 +221,8 @@ Claude Code in this version. The commands are Agent Skills, so other agents are
 possible later.
 
 **What does it cost?**
-The kit is free. A server on Hetzner is a few euros a month, and the exact
-price for the default size is confirmed at the first real run. Tailscale is free
+The kit is free. A server on Hetzner is a few euros a month; Hetzner's own
+price page gives the exact figure for each size. Tailscale is free
 for small teams. You pay for the coding agent subscription.
 
 **Can I use a server I already have?**
@@ -240,9 +239,10 @@ tools, mostly on the private network. It assumes Hetzner, Tailscale, and Coolify
 The kit is free software, provided as is, under the [MIT licence](LICENSE).
 There is no warranty, and the licence's own terms are the ones that apply.
 
-This version has not been run against a real server. Several facts in the
-design are marked to be confirmed at the first rehearsal, and the rehearsal
-record will say which held.
+This version has been run once against a real server, in `github` mode with no
+public lane. `internet` mode and the public lane have not been run yet. The
+rehearsal record in `tests/rehearsal.md` says which facts that run confirmed
+and which are still open.
 
 The commands verify what they can reach from your computer and from the server.
 A matched port probe means the ports you can see answered as expected, which is

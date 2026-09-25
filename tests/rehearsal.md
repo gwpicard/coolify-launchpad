@@ -90,10 +90,10 @@ checked on every run, because the services behind them change without notice.
   port closed and prove nothing, which is why it is not automatic yet.
 - No token value appears anywhere in either session's transcript.
 
-## Before the first real run
+## Shown without a server
 
-This part of the record holds what has been shown without a real server, so the
-first real run knows what it still has to prove.
+What the unit tests and the offline preview showed before any server existed.
+A laptop can show this much; the list above is what only a real run confirms.
 
 The substrate (the spec, the env check, the Pulumi program, cloud-init sections
 1, 2, 4 and 5, and Phase B steps 1 to 3) has passed:
@@ -168,20 +168,118 @@ The three skills, their references and the prose guards have passed
   sentence last in every description.
 - `skills-ref validate` accepts each skill, and the generated adapters match.
 
-A session driven by typing `/launch-server` has not run yet. The first real run
-does it that way, and also confirms two things only a person at the consoles
-can: that the steps in `docs/before-you-launch.md` match what the Hetzner and
-Tailscale consoles show, and that the tailnet policy entries in the preflight
-reference save as written. It also records where Coolify puts two-factor
-authentication, which the admin step names as Settings, General.
+## The first real run, 2026-09-25
 
-The first real run is still pending. Until it has happened, nothing here is
-claimed to work on Hetzner. It must run `npm run launch -- --server <name>` in
-`github` mode with no public lane to the block, and then confirm the facts above
-that a laptop cannot, in particular: the `/register` behaviour, `set_rules` and
-its read-back, the probe reading every port closed, `npx -y skills add` over SSH,
-a `--resume` after 22 has closed, `/setup-coolify-devops` step 1 and step 2's
-firewall check with no gap recorded, and `npm run retire` taking the server down.
+One `cpx22` server in `nbg1` on Hetzner, dashboard exposure `github`, no public
+lane, the server-side tooling installed. The launchpad was the code that became
+0.1.0, still stamped 0.0.0. The operator's agent was a Claude Code session in
+the cloned folder that followed `/launch-server` as written. The person answered
+the six questions, made the Hetzner token and the auth key, and saved the
+tailnet policy in the console. On the server, coolify-devops 0.4.0 ran
+`/setup-coolify-devops` through to its canary, and its `/host` then put a small
+web app on the server, reached over the tailnet. `/retire-server` took the server
+down the same day. Coolify 4.3.23 was what the installer installed.
+
+The launch did not reach the block in one go. The ask to create the admin
+account came about three minutes in, the person did not see it, and the 20-minute
+wait ran out. The launch stopped cleanly and named the resume. Once the account
+existed, `--resume` ran to the block without `--admin-created`.
+
+### Timings
+
+| Stage | Time |
+|---|---|
+| Reading the spec and checking the env file | 2 s |
+| Creating the server on Hetzner | 22 s |
+| Cloud-init finished and Coolify answering | 2 min 36 s |
+| Tailnet node verified | 3 s |
+| Node matched to the Hetzner server | 1 s |
+| SSH grant proved | 0.6 s |
+| Waiting for the admin account | the full 20 min, missed |
+| The resume, from start to block | 21 s |
+| The whole launch, less the missed wait | about 4 min |
+| The retire, from the typed name | about 40 s (tailnet logout 16 s, Hetzner destroy 20 s) |
+
+Within the resume, the env file took 0.3 s, the skills install 4.4 s, the lane
+firewall 4.4 s and the probe 3 s.
+
+### What it confirmed
+
+Each row is a fact from the list above, in its order.
+
+| Fact | Result | What the run showed |
+|---|---|---|
+| Registration page | Held | Once the admin account existed, `/register` answered 302 and sent the browser to `/login`, and the resume read that as the account existing. |
+| Installer version argument | Not confirmed | `COOLIFY_VERSION` was unset, so the installer ran with no argument and installed its current release, 4.3.23. The version stays unpinned until a run passes one. The installer ran as root and finished, which does not show whether it requires root. |
+| Server type and price | Partly | `cpx22` exists in `nbg1` and launched. `cpx32` was not tried, and no price was recorded. |
+| Auth key from a file | Partly | `tailscale up --auth-key=file:<path>` joined with a one-off, pre-approved key. Nobody checked that the key file was gone from `/run` afterwards. |
+| apt lock and IPv4 | Partly | Cloud-init finished without error in 2 min 36 s with the `Acquire::ForceIPv4` file in place. The log was not read for a wait on the lock or on an IPv6 address. |
+| A failed first phase | Not tried | Nothing in the first phase failed. |
+| Coolify on 8000 | Held | `127.0.0.1:8000` answered, and so did `localhost:8000`, which is why the block's Coolify line reads `localhost`. |
+| The tailnet node | Partly | `.Self.Tags` held `tag:server`, `.Self.KeyExpiry` was null, HTTPS was on and `RunSSH` was true; coolify-devops read the same values again. Which of the two MagicDNS fields the node gave was not recorded. |
+| GitHub's hook ranges | Partly | Six ranges were read, and the `github` rule and its read-back matched them. `/check-server` compared them with GitHub's list again and found them equal. No real push went through them. |
+| `npx -y skills add` over SSH | Held | Completed in 4.4 s with no terminal: five skills in `/root`, and `/root/skills-lock.json` written. |
+| The SSH grant | Held | Proved in 0.6 s with every key and password method off. The policy's `ssh` rule needed `group:server-admins` as its source, as the preflight reference already gives it. |
+| The humanizer's placement | Not tried | |
+| `/setup-coolify-devops` step 2 | Partly | It accepted the launchpad's probe as its firewall check. With no Hetzner token on the box it could not read the rules itself, and its later `/health` listed "firewall not read back" among its gaps. |
+| A resume after 22 is closed | Not confirmed | The resume ran before the firewall step, so 22 was still open, though it chose the tailnet anyway. It wrote the env file for the first time, so leaving the file untouched was not tested either. |
+| Finding the node by name | Held | `tailscale ip -4` found it, and the resume reached the server over the tailnet. |
+| `set_rules` and its read-back | Held | The action finished and the rules read back equal to what was sent: "TCP 8000 from 6 source(s)". |
+| The probe | Held | From the operator's machine, 22, 80, 443, 3000, 8000, 6001 and 6002 all read closed within seconds of the rules changing, and Coolify answered over the tailnet with HTTP 302. |
+| Node and Claude Code | Held | `node --version` read v22.23.3, and Claude Code ran on the box. |
+| `/root` left clean | Held | The launch's check of `/root` passed, and coolify-devops's scaffolder ran in place. |
+| `/setup-coolify-devops` step 1 | Held | It read every binding from the box, and they matched the block, the Tailnet line included. |
+| `/check-server` | Held | 13 rows, all ok, and nothing changed. A second read after the GitHub App was added gave 14 of 14. |
+| The retire | Held | A first reply that was not the name was refused and nothing was destroyed. With the name, the node was logged out and stopped answering; the server, the SSH key and the firewall were destroyed; the stack and the two record files went; `.env.<name>` stayed. Read afterwards, the Hetzner project held no servers, firewalls, SSH keys or primary IPs. The console step that removes the machine was handed over and was still the person's to do when this was written. |
+| The node's identity | Held | The metadata service gave the stack's server id, 167401049, and the public IP matched. |
+| The probe over IPv6 | Not tried | |
+| No token in a transcript | Did not hold | The launch and retire output carried none. On the server, a coolify-devops session listed its own env file and put the Coolify token in that session's transcript. That step belongs to coolify-devops and was reported to its maintainer. |
+
+In the consoles, the three tailnet policy entries from the preflight reference
+saved as written and were all there after a reload.
+
+### Still to confirm
+
+The next rehearsal has to cover what this one did not:
+
+- the installer's version argument, and then the pin;
+- `cpx32` in `nbg1`, and the price of each size;
+- the key file gone from `/run`, and the log free of lock and IPv6 waits;
+- a failed first phase stopping early;
+- which MagicDNS field a real node gives;
+- a real push through GitHub's hook ranges reaching Coolify;
+- `npx skills add gwpicard/coolify-launchpad` not offering the humanizer;
+- a `--resume` after 22 has closed, leaving the env file untouched;
+- the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
+- where Coolify keeps two-factor authentication (the ask says Settings, General);
+- `internet` mode and the public lane, which no run has tried;
+- the Tailscale console removal step, done and seen to work;
+- a launch started by typing `/launch-server` itself.
+
+### Notes for the operator
+
+- The admin-account ask comes about three minutes into the launch. Stay at the
+  screen until it does, because a missed ask costs the 20-minute wait and a
+  resume.
+- A resume after the account exists repeats the ask in its first line, then goes
+  straight on. The ask can be ignored there.
+- At the retire, reply with the bare server name. The IP address was refused,
+  and a name with a full stop after it would not match either.
+- The block's advice to put your own IP on the 8000 rule for the GitHub App is
+  not needed. Coolify's manual route for the App works over the tailnet with no
+  firewall change, and its automated route fails for a dashboard reached only
+  over the tailnet.
+- Traefik publishes 8080, which the probe does not test.
+- Claude Code on the server runs as root. A headless run there refuses to bypass
+  permissions and needs an allow-list, and the signed-in account's own connectors
+  load on the server too.
+
+Folded into this release: the announcement in `/launch-server` now says the ask
+comes a few minutes in, and `/retire-server` shows the exact name to type. The
+repeated ask, the GitHub App advice and the 8080 gap are left for the next
+version.
+
+## Taking a server down by hand
 
 If `npm run retire` refuses a server that should be the launchpad's, or fails
 partway, the server is destroyed by hand from the repository folder. The first
@@ -213,3 +311,4 @@ A full run costs a few cents of Hetzner time for a server that lives under an ho
 
 | Date | Launchpad | coolify-devops | Coolify observed | Facts held | What failed | Folded into |
 |---|---|---|---|---|---|---|
+| 2026-09-25 | 0.0.0, released as 0.1.0 | 0.4.0 | 4.3.23 | 13 held, 6 partly, 5 not confirmed or not tried, 1 did not hold; see the first real run above | The missed admin ask timed out the first pass, and a coolify-devops session put the Coolify token in its own transcript | The announcement in `/launch-server`; the typed name in `/retire-server` |

@@ -62,9 +62,9 @@ tools/                    build-adapters.sh and validate.sh
 The program and the three skills have landed. `/launch-server` interviews the
 person and hands over to `npm run launch`, which takes a spec to the server
 block. `/check-server` hands over to `npm run check-server`, which reads a
-server back, and `/retire-server` to `npm run retire`, which destroys one. None
-of it has run against a real server yet. `CHANGELOG.md` says what is still to
-come.
+server back, and `/retire-server` to `npm run retire`, which destroys one. One
+real run on Hetzner has proved the `github` mode with no public lane, from launch
+to retire; `tests/rehearsal.md` records it and lists what is still unconfirmed.
 
 ## The boundary
 

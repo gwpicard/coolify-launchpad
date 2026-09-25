@@ -5,86 +5,48 @@ One entry per version in `package.json`. The public repository carries a
 version is never re-released with different skill content; `tools/validate.sh`
 refuses a version that does not match every skill.
 
-## Unreleased
+## 0.1.0, 2026-09-25
 
-- The repository exists, with its records and its checks: the contributor guide,
-  the writing rules, the three-way positioning, the server model with its firewall
-  and probe tables, the design record, the sources, the rehearsal procedure, the
-  vendored humanizer, and the prose guard library. The layout is in place for the
-  code that has not been written yet.
-- No code has run against a real server. Nothing here has been rehearsed, and the
-  facts the design leans on (how Coolify's registration page behaves after the
-  first user, the installer's version argument, the current Hetzner type names,
-  GitHub's hook ranges, `npx -y` over a session with no terminal, the SSH grant,
-  the humanizer's placement) are all marked to be confirmed in the first rehearsal.
-- The substrate has landed. `npm run launch -- --server <name>` reads the spec
-  and `.env.<name>`, checks this computer and that each secret is set (by name,
-  never by value), creates the server with Pulumi, waits for cloud-init and
-  Coolify, verifies the tailnet node, and proves the SSH grant from this
-  computer. It stops there, with port 22 still open. If it stops earlier, it
-  prints the failure block; its way forward is to run the launch again, or to
-  destroy the stack by hand as `tests/rehearsal.md` describes, until `--resume`
-  and `/retire-server` land. It has passed its unit tests and an offline
-  `pulumi preview`. It has not yet run against Hetzner.
-- A later launch never replaces a running server over a change to user-data, such
-  as a pinned Coolify version or a new auth key. The auth key reaches `tailscale
-  up` through a file rather than the command line, and `.env.example` now asks
-  for a one-off, pre-approved key, because user-data stays readable on the box.
-  Step 3 gives up on a connection held by a Tailscale `check` rule and says to
-  change it to `accept`. On a Mac, the App Store build of Tailscale is found.
-- `pulumi login` is no longer an install step: the launch keeps Pulumi's state in
-  `.pulumi/` itself. A copy of `.env.example` needs `chmod 600`, and the launch
-  says so if it is missing.
-- The launch now runs to the end. After the SSH grant it waits while you create
-  the Coolify admin account over the tailnet, writes the env file once at mode
-  600, installs the coolify-devops skills in `/root` when the spec asks for the
-  tooling, replaces the firewall's rules with the lane's (22 closes), probes the
-  public IP, and prints the server block and a list of what is still yours to do,
-  also written to `servers/<name>.block.txt`. Node 22 and Claude Code are
-  installed by cloud-init, after Coolify, when the tooling is asked for, and a
-  failure there no longer stops Coolify's install.
-- `npm run launch -- --server <name> --resume` runs the second phase again, over
-  Tailscale SSH once port 22 has closed, and leaves the env file as it is. It
-  stops at once, rather than waiting, when it cannot find the node and 22 is
-  closed. If Coolify's registration page never closes, `--admin-created` says
-  the account exists, but in `internet` mode 8000 still stays shut while the page
-  answers. In `internet` mode nothing opens until `--two-factor-on`.
-- A machine found on the tailnet by name must prove it is the stack's server,
-  by its public IP and Hetzner instance id, before the launch goes on, the check
-  reads it, or the retire logs it out. A stale machine of the same name is left
-  alone.
-- A resume, the check and the retire no longer need `TAILSCALE_AUTH_KEY`, which
-  is spent after the launch.
-- `npm run check-server -- --server <name>` reads a server back without changing
-  it and prints one table, broken things first, then the server block again.
-- `npm run retire -- --server <name>` refuses a server the launchpad did not
-  create, destroys nothing until the name is typed, logs the node out of the
-  tailnet, destroys the server and its stack, and hands over the console step
-  that removes the machine.
-- The firewall only changes a `coolify` firewall that carries this server's
-  labels. Its rule descriptions are now the exact strings coolify-devops sends.
-  The block's Tailnet line says the grant reaches root, proved from this
-  computer, because the launchpad cannot read which group the policy names, and
-  a new Admin line says how the account was known to exist.
-- All of this has passed its unit tests against stand-ins and the offline
-  preview. None of it has run against Hetzner.
-- The three commands work in Claude Code. `/launch-server` asks six questions
-  and writes `servers/<name>.yaml`. It walks you through the Hetzner token, the
-  tailnet policy, the auth key and the env file, and checks what it can with
-  the new `npm run launch -- --server <name> --preflight`, which creates
-  nothing. It says what the server will cost before it creates one, tells you
-  when to create the Coolify admin account, and reads the server block back.
-  `/check-server` reads a server and changes nothing. `/retire-server` destroys
-  a server only after you type its name in reply to the warning.
-- [docs/before-you-launch.md](docs/before-you-launch.md) says where to click in
-  the Hetzner and Tailscale consoles. The tailnet policy's `ssh` rule names a
-  group of operators, because Tailscale does not accept `autogroup:admin` as
-  the source of an `ssh` rule.
-- Prose guards under `tests/rules/` keep the rules the scripts cannot hold: a
-  secret is checked for presence and never read, a pasted token is refused,
-  the retire waits for the typed name, a step that costs money is announced, the
-  check only reads, the launch stops at the block, and each description ends
-  with its closing sentence.
-- Still to land: a first real launch driven from a Claude Code session, then
-  release 0.1.0 after a full rehearsal through coolify-devops's canary and
-  `/retire-server`.
+The first release. It takes a person from no server to one that
+coolify-devops's `/setup-coolify-devops` accepts, and it has been run once, in
+full, on a real Hetzner server.
+
+- Clone the repository and type `/launch-server` in Claude Code. It asks six
+  questions, walks you through the Hetzner token, the tailnet policy, the auth
+  key and the env file, checks what it can without creating anything, and says
+  what is about to be created before it creates it.
+- The launch creates the server with Pulumi, waits for Coolify, joins the
+  server to your tailnet with the `tag:server` tag and Tailscale SSH, and proves
+  you can reach it as root from your own computer. It then asks you to create
+  the Coolify admin account over the tailnet, writes the env file coolify-devops
+  reads, installs Node 22, Claude Code and the coolify-devops skills when you
+  asked for them, closes port 22, applies the firewall for your lane, probes the
+  public address from outside, and prints the server block and what is still
+  yours to do.
+- `--resume` runs the second half again over the tailnet and leaves an env file
+  you have filled alone. `/check-server` reads a server back and changes
+  nothing. `/retire-server` destroys only a server the launchpad made, and only
+  after you type its name.
+- The launchpad never reads a secret's value, never takes a token pasted into
+  the session, and never sends its own Hetzner token to the server.
+
+What the rehearsal showed, on a `cpx22` in `nbg1` in `github` mode with no
+public lane, handed over to coolify-devops 0.4.0 and then retired:
+
+- The launch itself took about four minutes of machine time: the server in
+  22 seconds, cloud-init and Coolify in 2 minutes 36 seconds, the tailnet and
+  the SSH grant in a few seconds, and the second half in 21 seconds.
+- The probe read every port closed, Coolify answered over the tailnet, and
+  `/check-server` found nothing broken. coolify-devops accepted every answer in
+  the server block, reached its canary, and hosted an app on the server.
+- The retire refused a reply that was not the server name. With the name, it
+  took the server down in about 40 seconds and left the Hetzner project empty.
+- The ask to create the admin account comes about three minutes in, and the
+  first time it was missed, so the launch waited out its 20 minutes and needed a
+  resume. `/launch-server` now says when the ask will come. `/retire-server` now
+  shows the exact name to type, because the first reply was the IP address.
+- Coolify 4.3.23 was installed. The installer's version argument was not tried,
+  so the Coolify version is still not pinned.
+- Not yet confirmed: `internet` mode, the public lane, the probe over IPv6, a
+  resume after port 22 has closed, and where Coolify keeps two-factor
+  authentication. `tests/rehearsal.md` lists every fact and what the run showed.

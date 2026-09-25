@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a clone of coolify-launchpad on the operator's own computer, with Node 20 or newer, the Pulumi CLI, and this computer on the Tailscale tailnet. Needs network access to the Hetzner API and to the new server.
 metadata:
   author: gwpicard
-  version: "0.0.0"
+  version: "0.1.0"
 ---
 
 # /launch-server
@@ -118,8 +118,9 @@ Before the server is created, tell the person in a few short lines:
 - The launch also creates an SSH key and a firewall named `coolify` in that
   project, and the server joins their tailnet with the auth key, which uses the
   key up.
-- It takes about fifteen minutes, with one step in the middle where they create
-  the Coolify admin account in their browser.
+- It takes about five minutes. About three minutes in, they must create the
+  Coolify admin account in their browser, so they should stay at the screen
+  until that ask comes. A missed ask costs a 20-minute wait and a resume.
 - If it stops partway, the server may already exist, and it costs money until
   they resume or retire it.
 

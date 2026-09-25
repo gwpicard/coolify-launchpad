@@ -113,7 +113,7 @@ Coolify's first visitor to `http://<ip>:8000` becomes the admin. Coolify's own d
 
 The launchpad keeps 8000 closed to the internet until the account exists. During the second phase it asks the person to open `http://<tailnet-ip>:8000` from their own machine on the tailnet and create the account, then polls the registration page until it stops answering. Only after that does it apply the lane firewall. In `internet` mode it also requires the person to type that 2FA is on before 8000 opens to anyone, and the server block says that 2FA was confirmed by the person, not verified by the launchpad.
 
-Whether Coolify's registration page stops answering 200 after the first user is confirmed in the first rehearsal. If it does not hold, the launchpad asks the person to confirm the account exists instead.
+Coolify's registration page stops answering 200 after the first user: in the first real run, on Coolify 4.3.23, it answered 302 and sent the browser to `/login`. If a later Coolify changes that, the launchpad asks the person to confirm the account exists instead.
 
 ## Troubleshooting
 
@@ -126,9 +126,10 @@ Whether Coolify's registration page stops answering 200 after the first user is 
 | `.MagicDNSSuffix` or `.CertDomains` is empty in `tailscale status --json` | MagicDNS or HTTPS is not enabled on the tailnet | In the Tailscale admin console, DNS, enable MagicDNS, then enable HTTPS. Then `--resume`. |
 | A machine named after a retired server still shows offline in the Tailscale console | `tailscale logout` expires the key; it does not delete the machine | In the console, Machines, the entry, Remove. `/retire-server` prints this step. |
 | The probe reads 8000 open in `github` mode from the operator's machine | The firewall rule for 8000 has a wider source than GitHub's ranges, or the rules were not applied | `/check-server` reads the live rules back and compares them with GitHub's current ranges. `npm run launch -- --server <name> --resume` applies them again. |
+| The launch stops after 20 minutes at "Waiting for the Coolify admin account" | The ask came about three minutes in and nobody created the account in time | Open `http://<tailnet-ip>:8000` from your own computer and create the account, then `npm run launch -- --server <name> --resume`. The server bills while it waits. |
 | The launch waits at "Waiting for the Coolify admin account" after the account exists | Coolify's `/register` page still answers 200 after the first user, which the launch reads as registration still open | Run `npm run launch -- --server <name> --resume --admin-created`. The block then says the account was confirmed by you. |
 | The launch stops before the firewall in `internet` mode | Port 8000 would open to everyone, and nobody has said two-factor authentication is on | Turn it on in Coolify under Settings, General, then `--resume --two-factor-on`. |
 | The launch stops at "Checking /root and the tools on the box" | `/root` holds `AGENTS.md`, `CLAUDE.md`, `instance.yaml`, `docs/` or `stacks/`, or the tooling did not install | Move the named files out of `/root`, or read `/var/log/cloud-init-output.log` and `/var/log/coolify-launchpad-skills.log`, then `--resume`. |
 | "Refusing to change the firewall" or "Refusing to retire" | A firewall or stack named for this server lacks the labels `purpose=coolify` and `server=<name>`, or belongs to another project | Nothing was changed. The launchpad acts only on what it created. If the resource is yours, handle it in the Hetzner console. |
 
-No row in this table has been seen on a real server yet. The first four come from hermes-launchpad and coolify-devops, the rest from the code and its offline tests. The first real rehearsal confirms or corrects each one, and `tests/rehearsal.md` records what it found.
+The row for a missed admin ask comes from the first real run, where the resume then went on without `--admin-created`. The other rows come from hermes-launchpad, coolify-devops, the code and its offline tests, and no real run has hit them yet. `tests/rehearsal.md` records what each run found.
