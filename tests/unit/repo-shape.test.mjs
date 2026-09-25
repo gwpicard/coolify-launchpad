@@ -15,7 +15,7 @@ const must = [
   'skills/launch-server/references/server-block.md',
   'tests/rehearsal.md', 'servers/example.yaml', '.env.example',
   '.agents/maintainer-skills/humanizer/SKILL.md', '.agents/maintainer-skills/humanizer/LICENSE',
-  'tests/lib/rule-shape.sh', 'tools/build-adapters.sh', 'tools/validate.sh',
+  'tests/lib/rule-shape.sh', 'tools/build-adapters.sh', 'tools/validate.sh', '.githooks/commit-msg',
 ];
 
 for (const f of must) {

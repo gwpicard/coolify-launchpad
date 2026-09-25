@@ -40,6 +40,33 @@ hits=$(printf '%s\n' "$PROSE" | xargs grep -n -E '(^|[^A-Za-z0-9$}])#[0-9]{2,4}(
 [ -z "$hits" ] || bad "issue or pull request cited by number:
 $hits"
 
+say "== No AI attribution line or session link in tracked files =="
+# A session link is a personal address on the agent vendor's site, and this
+# repository is public. The commit-msg hook takes those lines out of a commit
+# message; this check covers the other way in, which is somebody pasting a
+# message into a file. The words are built here rather than written out, so
+# the check does not report itself. The hook and the test that drives it carry
+# the words on purpose, so they are the only files left out.
+attr_session=$(printf 'claude.ai/code/%s' 'session_')
+attr_author=$(printf 'Co-%sed-By: Claude' 'Author')
+attr_vendor=$(printf 'noreply@%s.com' 'anthropic')
+hits=$(git ls-files -co --exclude-standard \
+  | grep -v -x -e '.githooks/commit-msg' -e 'tests/unit/attribution-scrub.test.mjs' \
+  | while IFS= read -r f; do
+      [ -f "$f" ] || continue
+      grep -HnIiF -e "$attr_session" -e "$attr_author" -e "$attr_vendor" "$f" 2>/dev/null
+    done)
+[ -z "$hits" ] || bad "AI attribution line or session link found:
+$hits"
+
+# The saved mode, not this working copy, so a hook that would not run is caught.
+mode=$(git ls-files -s -- .githooks/commit-msg | cut -d' ' -f1)
+if [ -n "$mode" ] && [ "$mode" != "100755" ]; then
+  bad ".githooks/commit-msg is not saved as runnable (found mode $mode)"
+elif [ -z "$mode" ] && [ ! -x .githooks/commit-msg ]; then
+  bad ".githooks/commit-msg is missing or not runnable"
+fi
+
 say "== Every local markdown link resolves =="
 for f in $(files '\.md$'); do
   dir=$(dirname "$f")

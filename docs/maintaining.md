@@ -2,7 +2,20 @@
 
 How the words in this repository are written, which document owns which idea, and
 how a release is cut. `AGENTS.md` holds the standing rules for the source; this
-file holds the detail behind three of them.
+file holds the detail behind four of them.
+
+## Before your first commit
+
+The commit-msg hook in `.githooks/` takes AI attribution lines out of a commit
+message. `AGENTS.md` says why. Git runs it only when the clone points at that
+folder, which is a local setting a clone does not carry. Run this once in every
+fresh clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`git config core.hooksPath` then prints `.githooks`.
 
 ## House rules for writing
 
@@ -68,7 +81,7 @@ documents disagree, the owner wins and the other is edited.
 | `docs/design.md` | How a launch works, step by step, and the reason each step is where it is. |
 | `docs/before-you-launch.md` | Where to click in the Hetzner and Tailscale consoles before a launch, for the person. The policy block and the auth key settings it points at live in the preflight reference. |
 | `docs/sources.md` | The outside work the launchpad took ideas or code from, and what each one contributed. |
-| `docs/maintaining.md` | This file: writing, ownership, releasing. |
+| `docs/maintaining.md` | This file: first-commit setup, writing, ownership, releasing. |
 | `AGENTS.md` | Standing rules for working on the source. |
 | `tests/rehearsal.md` | What a release rehearsal does, which facts it confirms, and the record of runs. |
 | The skills under `skills/` | What the person sees and types, in the order they see it. |
