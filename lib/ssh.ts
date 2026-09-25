@@ -27,7 +27,12 @@ export interface ProbeResult {
     status: number | null;
     stdout: string;
     stderr: string;
+    /** True when the command was stopped because it ran past its time limit. */
+    timedOut: boolean;
 }
+
+/** How long one SSH command may run before it is stopped, unless the caller says otherwise. */
+export const SSH_COMMAND_TIMEOUT_MS = 2 * 60_000;
 
 /**
  * Quote a string for safe use inside a single-quoted shell context.
@@ -64,18 +69,29 @@ function destination(target: SshTarget): string {
     return `${target.user}@${target.host}`;
 }
 
-/** Run a command over SSH without throwing. For probes and polls. */
-export function sshProbe(target: SshTarget, command: string): ProbeResult {
+/**
+ * Run a command over SSH without throwing. For probes and polls. Every call
+ * has a time limit, because some waits never end on their own: a Tailscale SSH
+ * rule with action `check` holds the connection open until someone signs in
+ * in a browser, and BatchMode does not stop that.
+ */
+export function sshProbe(target: SshTarget, command: string, timeoutMs = SSH_COMMAND_TIMEOUT_MS): ProbeResult {
     const r = spawnSync("ssh", sshArgs(target, [destination(target), command]), {
         stdio: ["ignore", "pipe", "pipe"],
         encoding: "utf8",
+        timeout: timeoutMs,
+        killSignal: "SIGKILL",
     });
-    return { ok: r.status === 0, status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+    const timedOut = (r.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
+    return { ok: r.status === 0, status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", timedOut };
 }
 
-/** Run a command over SSH. Returns stdout, throws on a non-zero exit. */
-export function sshRun(target: SshTarget, command: string): string {
-    const r = sshProbe(target, command);
+/** Run a command over SSH. Returns stdout, throws on a non-zero exit or a timeout. */
+export function sshRun(target: SshTarget, command: string, timeoutMs = SSH_COMMAND_TIMEOUT_MS): string {
+    const r = sshProbe(target, command, timeoutMs);
+    if (r.timedOut) {
+        throw new Error(`ssh ${destination(target)} did not finish within ${Math.round(timeoutMs / 1000)} seconds: ${command.slice(0, 80)}`);
+    }
     if (!r.ok) {
         const why = r.stderr.trim() || r.stdout.trim() || command.slice(0, 80);
         throw new Error(`ssh ${destination(target)} exited ${r.status}: ${why}`);

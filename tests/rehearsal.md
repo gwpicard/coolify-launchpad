@@ -34,6 +34,9 @@ checked on every run, because the services behind them change without notice.
 - The Hetzner server type names and prices the interview offers still exist in the
   chosen location: `cpx32`, the default, and `cpx22`, the smaller size a
   rehearsal uses. Record the price each showed.
+- `tailscale up` accepts `--auth-key=file:<path>` with the installed version, a
+  one-off pre-approved key joins, and the key file is gone from `/run` afterwards.
+- `apt-get` waits on the lock that first-boot upgrades hold rather than failing.
 - `apt-get` and both installers finish over IPv4 with the `Acquire::ForceIPv4`
   file in place, and nothing in `/var/log/cloud-init-output.log` waits on an IPv6
   address.
@@ -70,14 +73,21 @@ The substrate (the spec, the env check, the Pulumi program, cloud-init sections
   The unit tests cover a spec whose name differs from its file name, the env
   check naming keys and never a value (including an untouched copy of
   `.env.example`, whose trailing comments must not count as values), every
-  placeholder resolving, no `ubuntu` user and no `ufw`, every fetch over IPv4, and
-  the tailnet checks against saved `tailscale status` answers.
+  placeholder resolving, no `ubuntu` user and no `ufw`, every fetch over IPv4, the
+  auth key reaching `tailscale up` through a file rather than the command line,
+  the tailnet checks against saved `tailscale status` answers, and an SSH
+  command that never answers being stopped at its time limit.
 - `npm run preview:offline`: `pulumi preview` on a copy of the program with a
   throwaway local state folder, stand-in secrets, and the Hetzner provider
   pointed at a closed port on the operator's machine. It plans five resources
   (the stack, the key pair, the SSH key, the firewall `coolify` with one inbound
   rule for 22 and no outbound rules, and the `cpx32` server in `nbg1` on
-  `ubuntu-24.04`), and user-data shows only as `[secret]`. The first run
+  `ubuntu-24.04`), and user-data shows only as `[secret]`. It then imports a
+  hand-built state for a server that already runs and previews again with a
+  different auth key: nothing is planned. The same preview on a copy of the
+  program without `ignoreChanges: ["userData"]` plans a replacement, driven by
+  user-data alone. That also confirmed the Hetzner provider stores user-data as
+  the base64 of its SHA-1. The first run
   downloaded the Hetzner and TLS provider plugins; nothing reached Hetzner,
   Tailscale or Pulumi Cloud. The Hetzner provider refuses to start unless the
   token is exactly 64 characters, so the stand-in is that long.

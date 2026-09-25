@@ -9,9 +9,12 @@
  * the probe and the server block) arrive in a later version.
  *
  * Running it again is safe. `pulumi up` changes nothing on a server that
- * exists, and every step after it only reads.
+ * exists, even after COOLIFY_VERSION is pinned or the auth key is renewed,
+ * because the program ignores later changes to user-data. Every step after it
+ * only reads.
  */
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { loadSpec, envPath, type ServerSpec } from "../lib/spec.js";
 import { requireEnvFile, secretsForChild } from "../lib/env.js";
@@ -46,8 +49,20 @@ function parseArgs(argv: string[]): Args {
 }
 
 function commandWorks(cmd: string, args: string[]): boolean {
-    const r = spawnSync(cmd, args, { stdio: "ignore" });
+    const r = spawnSync(cmd, args, { stdio: "ignore", timeout: 30_000 });
     return r.status === 0;
+}
+
+/**
+ * The Tailscale command on this computer. The Mac App Store build puts no
+ * `tailscale` on the path; its command sits inside the app instead.
+ */
+const MAC_APP_TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale";
+
+function tailscaleCommand(): string | undefined {
+    if (commandWorks("tailscale", ["version"])) return "tailscale";
+    if (process.platform === "darwin" && existsSync(MAC_APP_TAILSCALE)) return MAC_APP_TAILSCALE;
+    return undefined;
 }
 
 /**
@@ -67,7 +82,14 @@ function preflight(spec: ServerSpec): void {
     if (major < 20) problems.push(`Node ${process.versions.node} is too old; the launchpad needs Node 20 or newer.`);
     if (!commandWorks("pulumi", ["version"])) problems.push("The pulumi command is not on the path. Install the Pulumi CLI.");
     if (!commandWorks("ssh", ["-V"])) problems.push("The ssh command is not on the path.");
-    if (!commandWorks("tailscale", ["status"])) {
+    const tailscale = tailscaleCommand();
+    if (!tailscale) {
+        problems.push(
+            "No Tailscale command found on this computer: `tailscale` is not on the path" +
+            (process.platform === "darwin" ? `, and there is no ${MAC_APP_TAILSCALE}` : "") +
+            ". Install Tailscale here and sign in to the tailnet first.",
+        );
+    } else if (!commandWorks(tailscale, ["status"])) {
         problems.push("This computer is not on the tailnet: `tailscale status` failed. Sign in to Tailscale here first.");
     }
     if (problems.length > 0) throw new Error(problems.join("\n"));

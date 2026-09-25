@@ -45,6 +45,7 @@ docs/
 tests/
   unit/                   Node's test runner: cloud-init assembly, spec, env check, tailnet checks, harness
   offline-preview.sh      pulumi preview with stand-in secrets and local state; reaches no Hetzner, Tailscale or Pulumi service
+  lib/existing-server-state.ts   the hand-built state of a running server that the offline preview plans against
   rules/                  prose guards built on tests/lib/rule-shape.sh
   lib/rule-shape.sh       the guard library, copied from AI Build Kit
   rehearsal.md            what a release rehearsal does, and the record of runs

@@ -104,7 +104,10 @@ key followed only by a comment, the way `.env.example` ships, counts as not set.
 The check reports key names and nothing else. The values go from the file into
 the `pulumi` process's environment and nowhere else.
 
-`pulumi` is on the path, `node` is version 20 or newer, and `ssh` exists.
+`pulumi` is on the path, `node` is version 20 or newer, and `ssh` exists. The
+Tailscale command is `tailscale` on the path or, on a Mac with the App Store
+build, `/Applications/Tailscale.app/Contents/MacOS/Tailscale`, which puts nothing
+on the path.
 
 The operator's machine is on the tailnet, shown by `tailscale status` working
 locally. The person needs this to register the Coolify admin over the tailnet, and
@@ -118,8 +121,11 @@ owner, so without this rule Tailscale SSH refuses everyone, including the
 operator. The `autoApprovers.services` entry and the OAuth client stay
 coolify-devops's precondition, so each has one owner.
 
-The auth key was created for `tag:server`, reusable and not ephemeral. A tagged key
-brings the node up already tagged, with key expiry disabled. Ephemeral is the
+The auth key was created for `tag:server`, one-off, pre-approved and not
+ephemeral. A tagged key brings the node up already tagged, with key expiry
+disabled. One-off, because user-data stays readable from the metadata service by
+anything on the box, and a spent key there can do no harm; the reason is in
+[server-model.md](server-model.md). Ephemeral is the
 wrong choice for a server: an ephemeral node is removed once it goes offline, so a
 reboot could delete the server's identity.
 
@@ -150,7 +156,9 @@ The sections, in order:
    `Acquire::ForceIPv4 "true"` into `/etc/apt/apt.conf.d/`, because the Tailscale
    and Coolify installers run `apt-get` themselves, and a flag on our own lines
    would not reach theirs. The script runs under `set -euo pipefail`, so any
-   failed step stops it and `cloud-init status` reports `error`. There is no `ubuntu`
+   failed step stops it and `cloud-init status` reports `error`. A second file
+   sets `DPkg::Lock::Timeout "300"`: on first boot, unattended upgrades often hold
+   the apt lock, and without it `apt-get` fails at once instead of waiting. There is no `ubuntu`
    user, because Coolify's installer wants root, coolify-devops lands in `/root`,
    and Tailscale SSH gives root. There are no build tools, no ffmpeg, no Python,
    no ripgrep and no Homebrew; those were the previous payload's needs.
@@ -158,7 +166,10 @@ The sections, in order:
    key, `--ssh`, `--advertise-tags=tag:server` and `--hostname=<name>`. A failure
    here stops the script; hermes-launchpad only printed a warning, and a box that
    silently missed the tailnet was unreachable by name. The key travels base64
-   encoded, so a stray character in it cannot break the script.
+   encoded, so a stray character in it cannot break the script. On the box it is
+   decoded into a mode 600 file under `/run` and passed as
+   `--auth-key=file:<path>`, so it never appears in the process list; the file is
+   removed afterwards, and a `trap` removes it if `tailscale up` fails.
 3. `tooling.sh` (not built yet) installs Node 22 from NodeSource and Claude Code with `npm i -g
    @anthropic-ai/claude-code`. It is included only when question 5 was yes. It
    still belongs in user-data because it is decided before creation and never
@@ -196,6 +207,13 @@ firewall must be called `coolify`, one Hetzner project holds one launchpad
 server. A second launch into the same project fails when it tries to create a
 second `coolify` firewall. The SSH key is named `coolify-launchpad-<name>`, so it
 does not collide.
+
+The server carries `ignoreChanges: ["userData"]`. User-data only matters on
+first boot, and a change to it would make Pulumi replace the machine. So a later
+launch after the Coolify version is pinned, or with a new auth key, leaves the
+running server alone. `npm run preview:offline` proves this against a hand-built
+state for a running server: a new key plans nothing, and the same preview on a
+copy of the program without that line plans a replacement.
 
 At creation the firewall allows inbound TCP 22 from anywhere and nothing else.
 There are no outbound rules, which keeps all outbound traffic open, as
@@ -249,7 +267,11 @@ Each step is a progress event:
    turns off every key and password method, so only Tailscale SSH can let it in,
    and a key that happens to sit in this computer's agent cannot make a missing
    grant look present. It retries for 90 seconds, because a new node can take a
-   moment to appear in this computer's peer list.
+   moment to appear in this computer's peer list. Each attempt is stopped after
+   30 seconds. An ssh rule with action `check` holds the connection open until
+   someone signs in in a browser, which cannot happen during a launch, so a held
+   connection stops the step at once and says to change the rule to `accept`.
+   Every other SSH command has a time limit too.
 4. Wait for the admin account. Tell the person to open `http://<tailnet-ip>:8000`
    from this computer now and create the admin account, because whoever reaches
    that page first owns the server, which is why nothing is open to the internet

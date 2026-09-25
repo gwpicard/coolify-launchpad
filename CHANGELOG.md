@@ -26,6 +26,12 @@ refuses a version that does not match every skill.
   destroy the stack by hand as `tests/rehearsal.md` describes, until `--resume`
   and `/retire-server` land. It has passed its unit tests and an offline
   `pulumi preview`. It has not yet run against Hetzner.
+- A later launch never replaces a running server over a change to user-data, such
+  as a pinned Coolify version or a new auth key. The auth key reaches `tailscale
+  up` through a file rather than the command line, and `.env.example` now asks
+  for a one-off, pre-approved key, because user-data stays readable on the box.
+  Step 3 gives up on a connection held by a Tailscale `check` rule and says to
+  change it to `accept`. On a Mac, the App Store build of Tailscale is found.
 - `pulumi login` is no longer an install step: the launch keeps Pulumi's state in
   `.pulumi/` itself. A copy of `.env.example` needs `chmod 600`, and the launch
   says so if it is missing.

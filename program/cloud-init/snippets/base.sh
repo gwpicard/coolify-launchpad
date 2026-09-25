@@ -6,6 +6,10 @@ export DEBIAN_FRONTEND=noninteractive
 # apt later in this script, not only for the lines below.
 echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4
 
+# On first boot, unattended-upgrades often holds the apt lock. Wait for it for
+# up to five minutes instead of failing, here and in the installers after us.
+echo 'DPkg::Lock::Timeout "300";' > /etc/apt/apt.conf.d/99lock-timeout
+
 apt-get -o Acquire::ForceIPv4=true update
 apt-get -o Acquire::ForceIPv4=true -y \
     -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade

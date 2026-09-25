@@ -62,16 +62,24 @@ const firewall = new hcloud.Firewall(
     { ignoreChanges: ["rules"] },
 );
 
-const server = new hcloud.Server("coolify-server", {
-    name: spec.name,
-    serverType: spec.hetzner.type,
-    location: spec.hetzner.location,
-    image: "ubuntu-24.04",
-    sshKeys: [sshKey.id],
-    firewallIds: [firewall.id.apply((id) => Number(id))],
-    userData,
-    labels: { purpose: "coolify", server: spec.name },
-});
+// User-data only matters on first boot, and a change to it would make Pulumi
+// replace the machine, and a replaced machine has no /data/coolify. So a later
+// launch after pinning COOLIFY_VERSION, or with a new auth key, leaves the
+// running server alone. tests/offline-preview.sh proves the plan stays empty.
+const server = new hcloud.Server(
+    "coolify-server",
+    {
+        name: spec.name,
+        serverType: spec.hetzner.type,
+        location: spec.hetzner.location,
+        image: "ubuntu-24.04",
+        sshKeys: [sshKey.id],
+        firewallIds: [firewall.id.apply((id) => Number(id))],
+        userData,
+        labels: { purpose: "coolify", server: spec.name },
+    },
+    { ignoreChanges: ["userData"] },
+);
 
 export const ipv4Address = server.ipv4Address;
 export const serverId = server.id;

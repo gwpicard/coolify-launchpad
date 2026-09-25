@@ -62,4 +62,40 @@ refuse 'direction *: "out"' 'there are no outbound rules'
 [ "$(grep -c 'direction *: "in"' "$WORK/preview.txt")" -eq 1 ] && echo "ok: exactly one inbound rule" || { echo "FAIL: not exactly one inbound rule"; fail=1; }
 
 if [ "$fail" -ne 0 ]; then cat "$WORK/preview.txt"; echo "offline-preview: FAILED"; exit 1; fi
+
+# Part two: a later launch against a server that already runs. The state is
+# built by hand (tests/lib/existing-server-state.ts) as if the server had been
+# created with one auth key, and the preview runs with another, which changes
+# user-data. The server must not be replaced, because a replaced machine has
+# no /data/coolify. Then the same preview on a copy of the program without
+# `ignoreChanges: ["userData"]` must plan a replacement, which shows the first
+# answer comes from that line and not from the state.
+pulumi stack export --stack example > "$WORK/empty.json"
+"$ROOT/node_modules/.bin/tsx" "$ROOT/tests/lib/existing-server-state.ts" \
+  "$WORK/empty.json" "$WORK/running.json" example offline-preview-first-key
+pulumi stack import --stack example --file "$WORK/running.json" --non-interactive >/dev/null
+
+later() {
+  TAILSCALE_AUTH_KEY="$1" pulumi preview --stack example --non-interactive --diff > "$2" 2>&1 || {
+    cat "$2"; echo "offline-preview: FAILED"; exit 1; }
+}
+later offline-preview-first-key "$WORK/same.txt"
+later offline-preview-renewed-key "$WORK/renewed.txt"
+if grep -q 'coolify-server' "$WORK/same.txt"; then
+  echo "FAIL: the hand-built state does not match the program, so the next result would mean nothing"; fail=1
+else echo "ok: an unchanged spec plans nothing for the running server"; fi
+if grep -E -q 'replace|delete|\+-' "$WORK/renewed.txt"; then
+  echo "FAIL: a new auth key plans to replace the running server"; fail=1
+else echo "ok: a new auth key leaves the running server alone"; fi
+
+grep -v 'ignoreChanges: \["userData"\]' index.ts > index.ts.new && mv index.ts.new index.ts
+later offline-preview-renewed-key "$WORK/mutant.txt"
+if grep -q 'hcloud:index/server:Server: (replace)' "$WORK/mutant.txt"; then
+  echo "ok: without ignoreChanges the same change would replace the server"
+else echo "FAIL: removing ignoreChanges did not plan a replacement, so the check above proves nothing"; fail=1; fi
+
+if [ "$fail" -ne 0 ]; then
+  for f in same renewed mutant; do echo "== $f"; cat "$WORK/$f.txt"; done
+  echo "offline-preview: FAILED"; exit 1
+fi
 echo "offline-preview: passed"

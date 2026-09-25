@@ -64,7 +64,7 @@ export interface CoolifyReady {
 export async function waitForPhaseA(leg1: SshTarget, timeoutMs = PHASE_A_TIMEOUT_MS): Promise<CoolifyReady> {
     await pollUntil(
         () => {
-            const r = sshProbe(leg1, PHASE_A_PROBE);
+            const r = sshProbe(leg1, PHASE_A_PROBE, 60_000);
             if (!r.ok) return { done: false, last: r.stderr.trim().split("\n").pop() || "SSH not answering yet" };
             return judgePhaseA(readPhaseA(r.stdout));
         },
@@ -102,17 +102,30 @@ export function verifyTailnet(leg1: SshTarget, serverName: string): TailnetOnBox
  * with every key method off. It retries for a short while because a new node
  * can take a moment to reach this computer's peer list.
  */
-export async function proveSshGrant(tailnetIp: string, timeoutMs = 90_000): Promise<SshTarget> {
+export const GRANT_ATTEMPT_TIMEOUT_MS = 30_000;
+
+export const CHECK_RULE_FINDING =
+    "Tailscale SSH held the connection open, which is what an ssh rule with action \"check\" does while it waits " +
+    "for someone to sign in in a browser. Nothing can sign in during a launch. In the tailnet policy, change the " +
+    "ssh rule whose destination is tag:server to action \"accept\", then run the launch again. Nothing has closed yet.";
+
+export async function proveSshGrant(
+    tailnetIp: string,
+    timeoutMs = 90_000,
+    attemptTimeoutMs = GRANT_ATTEMPT_TIMEOUT_MS,
+): Promise<SshTarget> {
     const leg2: SshTarget = { host: tailnetIp, user: "root" };
     try {
         await pollUntil(
             () => {
-                const r = sshProbe(leg2, "true");
+                const r = sshProbe(leg2, "true", attemptTimeoutMs);
+                if (r.timedOut) return { fail: CHECK_RULE_FINDING };
                 return r.ok ? { done: true, value: true } : { done: false, last: r.stderr.trim().split("\n").pop() || `exit ${r.status}` };
             },
             { timeoutMs, intervalMs: 10_000, what: `Tailscale SSH to root@${tailnetIp} from this computer` },
         );
     } catch (err) {
+        if (err instanceof Error && err.message === CHECK_RULE_FINDING) throw err;
         const why = err instanceof Error ? err.message.split("\n")[0] : String(err);
         throw new Error(
             `${why}. The tailnet policy needs an ssh rule whose destination is tag:server and whose users are root, ` +

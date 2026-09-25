@@ -59,7 +59,7 @@ test("every fetch goes over IPv4", () => {
 
 test("tailscale up joins as tag:server with SSH on, and a failure stops the script", () => {
     const s = script();
-    assert.match(s, /tailscale up --authkey="\$TAILSCALE_KEY" --ssh \\\n\s+--advertise-tags=tag:server --hostname=alpha/);
+    assert.match(s, /tailscale up --auth-key="file:\$TAILSCALE_KEY_FILE" --ssh \\\n\s+--advertise-tags=tag:server --hostname=alpha/);
     assert.ok(!/tailscale up[^\n]*\|\|/.test(s), "tailscale up has a fallback that hides its failure");
     assert.ok(!/WARNING/.test(s));
 });
@@ -80,4 +80,20 @@ test("an empty auth key is refused", () => {
 
 test("the script is the same for the same inputs, so an unchanged spec never replaces the machine", () => {
     assert.equal(script(), script());
+});
+
+test("the auth key reaches tailscale through a mode 600 file, never the command line, and the file is removed", () => {
+    const s = script();
+    assert.ok(!/--auth-?key="?\$TAILSCALE_KEY"?[\s\\]/.test(s), "the decoded key is passed as an argument");
+    assert.ok(!/TAILSCALE_KEY="\$\(/.test(s), "the decoded key is held in a shell variable");
+    assert.match(s, /\(umask 077 && printf '%s' '[A-Za-z0-9+\/=]+' \| base64 -d > "\$TAILSCALE_KEY_FILE"\)/);
+    assert.match(s, /trap 'rm -f "\$TAILSCALE_KEY_FILE"' EXIT/);
+    assert.ok(s.indexOf("trap 'rm -f") < s.indexOf("base64 -d"), "the cleanup is set before the file is written");
+    assert.ok(s.lastIndexOf('rm -f "$TAILSCALE_KEY_FILE"') > s.indexOf("tailscale up"));
+});
+
+test("apt waits for the lock that first-boot upgrades hold, instead of failing", () => {
+    const s = script();
+    assert.match(s, /DPkg::Lock::Timeout "300";/);
+    assert.ok(s.indexOf("DPkg::Lock::Timeout") < s.indexOf("apt-get"));
 });
