@@ -3,14 +3,15 @@
 // metadata.version, and a CHANGELOG.md entry for it. A stamp that matches
 // nothing reports success and ships the previous number, so the check names
 // every file that is out of step rather than the first.
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { skillFolders } from './skill-folders.mjs';
 
 const root = new URL('..', import.meta.url).pathname;
 const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 const wrong = [];
 
-for (const name of readdirSync(join(root, 'skills'))) {
+for (const name of skillFolders(join(root, 'skills'))) {
   const file = join(root, 'skills', name, 'SKILL.md');
   const src = readFileSync(file, 'utf8');
   const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
