@@ -15,22 +15,30 @@ which the agent reads from. This page says where to click.
 
 ## A Hetzner project and token
 
-1. Sign in to the [Hetzner Cloud Console](https://console.hetzner.cloud/).
-2. Create a new project for this server. Use a new project for each launchpad
+1. If you have no Hetzner account, sign up, confirm your email and add a
+   payment method. Hetzner may run an identity check on a new account, and that
+   can take up to a day, so do this well before the launch.
+2. Sign in to the [Hetzner Cloud Console](https://console.hetzner.cloud/).
+3. Create a new project for this server. Use a new project for each launchpad
    server: the firewall is always named `coolify`, and Hetzner allows only one
    firewall of a name in each project.
-3. Open the project, then Security, then API tokens, and generate a token with
+4. Open the project, then Security, then API tokens, and generate a token with
    the permission "Read & Write".
-4. Hetzner shows the token once. Put it straight into `.env.<name>` as
+5. Hetzner shows the token once. Put it straight into `.env.<name>` as
    `HCLOUD_TOKEN` (see [The env file](#the-env-file)).
 
 The token stays on your computer. The launchpad never sends it to the server.
 
 ## Tailscale on this computer
 
-1. Install Tailscale on this computer and sign in to your tailnet.
-2. In the [Tailscale admin console](https://login.tailscale.com/admin/dns), under
-   DNS, turn on MagicDNS, then turn on HTTPS certificates.
+1. Install Tailscale on this computer and sign in to your tailnet. The
+   Tailscale app should then show that it is connected.
+2. Open the [DNS page](https://login.tailscale.com/admin/dns) of the Tailscale
+   admin console and note your tailnet name. It looks like `tailXXXX.ts.net`,
+   and every address on your tailnet ends with it. If you want a different one,
+   choose it now with Rename tailnet, before any machine joins. A later change
+   can break links to the machines already on it.
+3. On the same page, turn on MagicDNS, then turn on HTTPS certificates.
 
 You create the Coolify admin account over the tailnet, and the launchpad
 reaches the server over it once port 22 closes, so this computer has to be on
@@ -87,7 +95,9 @@ you can read the file. It never prints a value.
 
 ## The tools
 
-Node 20 or newer, the [Pulumi CLI](https://www.pulumi.com/docs/iac/download-install/),
-and `ssh`. There is no Pulumi sign-in: the launchpad keeps its state in `.pulumi/`
-in this folder. `npm run launch -- --server <name> --preflight` checks all of
-this and spends nothing.
+[Claude Code](https://docs.anthropic.com/en/docs/claude-code), where you type
+`/launch-server`. Then Node 20 or newer, the
+[Pulumi CLI](https://www.pulumi.com/docs/iac/download-install/), and `ssh`. There
+is no Pulumi sign-in: the launchpad keeps its state in `.pulumi/` in this folder.
+`npm run launch -- --server <name> --preflight` checks everything after Claude
+Code and spends nothing.
