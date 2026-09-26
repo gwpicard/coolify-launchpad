@@ -112,7 +112,7 @@ session, and coolify-devops never calls back. That is on purpose, and
 A first server. You type `/launch-server`. The agent asks for a name, where the
 server should run, whether anything will face the internet, and who may reach
 the dashboard. It checks your tokens are present, your tailnet is ready, and
-Pulumi is installed. Then it builds. About ten minutes in, it asks you to open
+Pulumi is installed. Then it builds. About three minutes in, it asks you to open
 an address in your browser and create the admin account. When you have, it
 closes the firewall and prints the server block.
 

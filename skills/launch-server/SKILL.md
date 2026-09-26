@@ -149,7 +149,7 @@ per finished step. Do not paste the raw JSON. Every resume below runs the same
 way, with `--resume` and its flags added before `--json`.
 
 **The browser step.** A `started` line that carries an `ask` is the admin
-account step. It comes about three minutes in, and the person may have looked
+account step. On a first launch it comes about three minutes in, and the person may have looked
 away, so make it hard to miss. If this harness gives you a tool that sends a
 desktop or push notification, send one saying the launch needs them in the
 browser now. Tell them in the chat as well, at once, using the address in the
