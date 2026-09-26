@@ -54,16 +54,17 @@ Deliberately not in the list:
 - Tailscale. It needs no inbound rule. It dials out on 443 and UDP and relays through Tailscale's own servers if it cannot connect directly.
 - Port 22. SSH goes over the tailnet, through Tailscale SSH. The launchpad opens 22 during its second phase and removes it as the last remote step.
 - Ports 6001 and 6002, Coolify's realtime and terminal channels. They stay closed from the internet in every mode. The dashboard works without them from outside, and the team has them over the tailnet.
+- Port 8080, where Traefik, Coolify's proxy, publishes its own dashboard. It stays closed from the internet in every mode. No rule opens it, and the probe checks that none has.
 - Anything an application listens on. Internal tools are reached by the registrar over the container network, public ones by Traefik on 443.
 
 No `ufw` on the host. Docker publishes a container port by rewriting iptables ahead of the host firewall's own chain, so a host firewall never sees that traffic. Coolify's own documentation says the same and recommends the cloud provider's firewall. Adding `ufw` on top buys nothing and can break Coolify, which connects to itself over SSH on port 22, traffic that never crosses the cloud firewall but that `ufw` would block.
 
 ## The outside probe
 
-After the rules are applied, the launchpad probes the server's public IP from the operator's machine, the same loop coolify-devops runs in its setup and in `/health`:
+After the rules are applied, the launchpad probes the server's public IP from the operator's machine. It runs the same loop coolify-devops runs in its setup and in `/health`, with 8080 added at the end:
 
 ```bash
-for p in 22 80 443 3000 8000 6001 6002; do
+for p in 22 80 443 3000 8000 6001 6002 8080; do
   timeout 3 bash -c "</dev/tcp/<public-ip>/$p" 2>/dev/null && echo "$p OPEN" || echo "$p closed"
 done
 ```
@@ -74,6 +75,7 @@ done
 | 80, 443 | open with a public lane, closed without | The public lane, or no public lane |
 | 8000 | open only in `internet` mode | In `tailnet` mode the dashboard is tailnet only. In `github` mode 8000 is open to GitHub's ranges only, so closed from the operator's machine is the rule working. |
 | 3000, 6001, 6002 | closed | Always |
+| 8080 | closed | Always. Traefik publishes its dashboard there, and no lane opens it. |
 
 Then, from the operator's machine on the tailnet, `curl -sI http://<tailnet-ip>:8000` must answer.
 

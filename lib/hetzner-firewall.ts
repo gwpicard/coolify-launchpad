@@ -291,8 +291,12 @@ export async function applyLaneFirewall(
 
 // The outside probe.
 
-/** The ports coolify-devops's setup step 2 and /health probe, in their order. */
-export const PROBE_PORTS = [22, 80, 443, 3000, 8000, 6001, 6002] as const;
+/**
+ * The ports coolify-devops's setup step 2 and /health probe, in their order,
+ * plus 8080, where Traefik publishes its dashboard. Launch and check both read
+ * this list.
+ */
+export const PROBE_PORTS = [22, 80, 443, 3000, 8000, 6001, 6002, 8080] as const;
 export type ProbePort = (typeof PROBE_PORTS)[number];
 export type PortState = "open" | "closed";
 export type ProbeResult = Record<ProbePort, PortState>;
@@ -311,6 +315,7 @@ export function expectedProbe(answers: LaneAnswers): ProbeResult {
         8000: answers.dashboard === "internet" ? "open" : "closed",
         6001: "closed",
         6002: "closed",
+        8080: "closed",
     };
 }
 

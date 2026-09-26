@@ -15,6 +15,7 @@ import {
     probeAll,
     probeMismatches,
     probePort,
+    PROBE_PORTS,
     RULE_DESCRIPTIONS,
     sameRules,
     type Fetch,
@@ -44,12 +45,12 @@ test("the six lane combinations equal the table exactly", () => {
     }
 });
 
-test("tailnet mode with no public lane sends an empty list, and no combination opens 22 or anything outbound", () => {
+test("tailnet mode with no public lane sends an empty list, and no combination opens 22, 3000, 6001, 6002, 8080 or anything outbound", () => {
     assert.deepEqual(laneRules({ public_lane: "none", dashboard: "tailnet" }), []);
     for (const [public_lane, dashboard] of SIX) {
         for (const r of laneRules({ public_lane, dashboard }, HOOKS)) {
             assert.equal(r.direction, "in");
-            assert.ok(!["22", "3000", "6001", "6002"].includes(r.port), `${r.port} opened in ${public_lane} + ${dashboard}`);
+            assert.ok(!["22", "3000", "6001", "6002", "8080"].includes(r.port), `${r.port} opened in ${public_lane} + ${dashboard}`);
         }
     }
 });
@@ -85,8 +86,21 @@ test("the probe expectation follows the table for every combination", () => {
         const lane = public_lane === "none" ? "closed" : "open";
         assert.deepEqual(e, {
             22: "closed", 80: lane, 443: lane, 3000: "closed",
-            8000: dashboard === "internet" ? "open" : "closed", 6001: "closed", 6002: "closed",
+            8000: dashboard === "internet" ? "open" : "closed", 6001: "closed", 6002: "closed", 8080: "closed",
         });
+    }
+});
+
+test("the probe covers 8080, Traefik's dashboard, and expects it closed in every lane", async () => {
+    assert.ok((PROBE_PORTS as readonly number[]).includes(8080), "8080 is missing from the probe list");
+    const asked: number[] = [];
+    await probeAll("203.0.113.10", async (_h, p) => (asked.push(p), "closed"));
+    assert.ok(asked.includes(8080), "the probe did not try 8080");
+    for (const [public_lane, dashboard] of SIX) {
+        const expected = expectedProbe({ public_lane, dashboard });
+        assert.equal(expected[8080], "closed", `${public_lane} + ${dashboard}`);
+        const actual = { ...expected, 8080: "open" as const };
+        assert.deepEqual(probeMismatches(actual, expected), ["port 8080 reads open, expected closed"], `${public_lane} + ${dashboard}`);
     }
 });
 

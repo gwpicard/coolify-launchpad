@@ -372,7 +372,7 @@ Each step is a progress event:
    not carry this server's labels or is not attached to it, waits for Hetzner to
    report the change applied, and reads the rules back to compare.
 8. Run the outside probe from the operator's machine, over ports 22, 80, 443, 3000,
-   8000, 6001 and 6002, and compare it to the expectation table. A mismatch is
+   8000, 6001, 6002 and 8080, and compare it to the expectation table. A mismatch is
    read again for up to a minute, then stops the launch. The block records
    that the probe ran from the operator's machine, which is on the tailnet.
    Traffic to the public address does not use the tailnet, but coolify-devops's
