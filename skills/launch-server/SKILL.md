@@ -149,17 +149,23 @@ per finished step. Do not paste the raw JSON. Every resume below runs the same
 way, with `--resume` and its flags added before `--json`.
 
 **The browser step.** A `started` line that carries an `ask` is the admin
-account step. Tell the person at once, using the address in the `ask` text:
+account step. It comes about three minutes in, and the person may have looked
+away, so make it hard to miss. If this harness gives you a tool that sends a
+desktop or push notification, send one saying the launch needs them in the
+browser now. Tell them in the chat as well, at once, using the address in the
+`ask` text:
 
 1. Open `http://<tailnet-ip>:8000` in a browser on this computer, now.
 2. Create the Coolify admin account there. Whoever reaches that page first owns
    the server, which is why nothing is open to the internet yet.
 3. Turn on two-factor authentication for that account, where the `ask` text
-   says.
+   says. No real launch has confirmed that place yet, so if the setting is not
+   there, ask the person to look through Coolify's settings for it.
 
 The launch waits up to 20 minutes and carries on by itself once Coolify closes
 its registration page. The person never types a password into this
-conversation.
+conversation. On a resume where the account already exists, the step carries
+no `ask`, so there is nothing to relay.
 
 **If the wait runs out.** The launch stops when the registration page still
 answers. Ask the person whether they created the account. If they say they did,

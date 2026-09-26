@@ -53,7 +53,8 @@ tests/
   offline-preview.sh      pulumi preview with stand-in secrets and local state; reaches no Hetzner, Tailscale or Pulumi service
   lib/existing-server-state.ts   the hand-built state of a running server that the offline preview plans against
   rules/                  prose guards built on tests/lib/rule-shape.sh: presence not value, no pasted
-                          token, the typed name, announcements, the closing sentence, the stop at the block
+                          token, the typed name, announcements, the closing sentence, the stop at the block,
+                          the admin ask
   lib/rule-shape.sh       the guard library, copied from AI Build Kit
   rehearsal.md            what a release rehearsal does, and the record of runs
 tools/                    build-adapters.sh and validate.sh

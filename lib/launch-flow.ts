@@ -7,6 +7,8 @@ import {
     REGISTER_PROBE,
     installSkills,
     readBox,
+    registerStatus,
+    registrationClosed,
     toolingProblems,
     waitForAdmin,
     writeEnvFile,
@@ -69,7 +71,7 @@ export interface PhaseBResult {
 export function twoFactorFinding(server: string): string {
     return (
         "In internet mode port 8000 opens to everyone, so two-factor authentication must be on first. " +
-        "Turn it on in Coolify under Settings, General, then run: " +
+        "Turn it on in Coolify (it should be under Settings, General, which no real launch has confirmed yet), then run: " +
         `npm run launch -- --server ${server} --resume --two-factor-on`
     );
 }
@@ -140,12 +142,16 @@ export async function phaseB(input: PhaseBInput, deps: PhaseBDeps, onProgress?: 
         adminCheck = "confirmed-by-you";
         skipped(onProgress, "Waiting for the Coolify admin account", "you confirmed it exists");
     } else {
+        // Look at /register before asking. On a resume the account often
+        // exists already, and an ask then would send the person to make an
+        // account they have made.
+        const exists = registrationClosed(registerStatus(box).code);
         await step(
             onProgress,
             "Waiting for the Coolify admin account",
             () => waitForAdmin(box, spec.name, { timeoutMs: t.adminTimeoutMs, intervalMs: t.adminIntervalMs }),
             (code) => `/register now answers ${code}`,
-            adminInstruction(tailnet.tailnetIp),
+            exists ? undefined : adminInstruction(tailnet.tailnetIp),
         );
     }
 

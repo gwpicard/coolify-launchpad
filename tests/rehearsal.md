@@ -252,6 +252,7 @@ The next rehearsal has to cover what this one did not:
 - a `--resume` after 22 has closed, leaving the env file untouched;
 - the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
 - where Coolify keeps two-factor authentication (the ask says Settings, General);
+- a resume after the account exists going on with no ask;
 - `internet` mode and the public lane, which no run has tried;
 - the Tailscale console removal step, done and seen to work;
 - a launch started by typing `/launch-server` itself.
@@ -260,9 +261,10 @@ The next rehearsal has to cover what this one did not:
 
 - The admin-account ask comes about three minutes into the launch. Stay at the
   screen until it does, because a missed ask costs the 20-minute wait and a
-  resume.
-- A resume after the account exists repeats the ask in its first line, then goes
-  straight on. The ask can be ignored there.
+  resume. Where the harness can send a desktop notification, the ask arrives
+  as one too; note whether it did.
+- A resume after the account exists looks at `/register` first and makes no
+  ask.
 - At the retire, reply with the bare server name. The IP address was refused,
   and a name with a full stop after it would not match either.
 - The block's advice to put your own IP on the 8000 rule for the GitHub App is
