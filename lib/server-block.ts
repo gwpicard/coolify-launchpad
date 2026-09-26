@@ -107,11 +107,12 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     if (!f.envTokenSet) {
         items.push(
             `Create the Coolify API token at http://${f.tailnetIp}:8000, Keys & Tokens, API tokens, with the read, write ` +
-            `and deploy scopes and never root. The token never goes into a chat session. Append it to the env file, ` +
-            `and do not run the cat > block that /setup-coolify-devops hands over: it would overwrite the env file ` +
-            `this launch wrote. The command below appends a single-quoted line, because a Coolify token has the ` +
-            `form <id>|<secret> and the | breaks an unquoted export. Run it in a plain shell on the server, not ` +
-            `inside Claude Code, paste the token when asked, then open a new shell: ${TOKEN_LINE_COMMAND}`,
+            `and deploy scopes and never root. The token never goes into a chat session. It goes into the env file this ` +
+            `launch wrote, as a single-quoted line, because a Coolify token has the form <id>|<secret> and the | ` +
+            `breaks an unquoted export. Append it. Do not run the cat > block that /setup-coolify-devops hands ` +
+            `over, because it would overwrite the env file. A shell opened after the append loads the token. Open ` +
+            `a shell on the server (not inside Claude Code), run this command and paste the token when asked: ` +
+            TOKEN_LINE_COMMAND,
         );
     }
     const claudeNotes =
@@ -138,8 +139,8 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     }
     if (spec.dashboard !== "tailnet") {
         items.push(
-            `After coolify-devops has accepted the server: the GitHub App, by Coolify's manual route ` +
-            `(${COOLIFY_GITHUB_APP_DOCS}). In Coolify at http://${f.tailnetIp}:8000, go to Sources, + Add, a name, ` +
+            `After coolify-devops has accepted the server: the GitHub App, by Coolify's manual route. ` +
+            `In Coolify at http://${f.tailnetIp}:8000, go to Sources, + Add, a name, ` +
             `Continue, then "Continue manually". The first real run made the App this way over the tailnet, with no ` +
             `firewall change. Use it rather than "Register With GitHub", which sends the browser to ` +
             `http://${f.publicIp}:8000: plain HTTP, and not signed in if you use Coolify over the tailnet. ` +
@@ -147,8 +148,12 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
             `http://${f.tailnetIp}:8000), the webhook URL ${githubWebhookUrl(f.publicIp)} and a long random webhook ` +
             `secret. Give it the permissions contents read, metadata read, pull requests write and emails read, and ` +
             `the events push and pull_request. Generate a client secret and a private key, and install the App on ` +
-            `your repositories. In Coolify, add the key under Keys & Tokens, Private Keys. Then fill in the App ID, ` +
-            `the Installation ID (the number after /installations/ in the installation's URL), the Client ID, the ` +
+            `your repositories.`,
+        );
+        items.push(
+            `Then finish the GitHub App in Coolify, as Coolify's own steps describe (${COOLIFY_GITHUB_APP_DOCS}). ` +
+            `Add the private key under Keys & Tokens, Private Keys. In the source, fill in the App ID, the ` +
+            `Installation ID (the number after /installations/ in the installation's URL), the Client ID, the ` +
             `client secret and the same webhook secret, and select the key.`,
         );
     }

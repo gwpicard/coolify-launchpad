@@ -106,31 +106,37 @@ test("the list of what is still yours marks nothing done and follows the answers
 
 test("the GitHub App item points at Coolify's manual route and never at opening 8000 to your own IP", () => {
     for (const dashboard of ["github", "internet"] as const) {
-        const item = stillYoursToDo({ ...facts, spec: { ...spec, dashboard } }).find((s) => /GitHub App/.test(s));
-        assert.ok(item, `no GitHub App item in ${dashboard} mode`);
+        const items = stillYoursToDo({ ...facts, spec: { ...spec, dashboard } });
+        const item = items.find((s) => /the GitHub App, by Coolify's manual route/.test(s));
+        const finish = items.find((s) => /^Then finish the GitHub App in Coolify/.test(s));
+        assert.ok(item, `no GitHub side item in ${dashboard} mode`);
+        assert.ok(finish, `no Coolify side item in ${dashboard} mode`);
+        assert.equal(items.indexOf(finish), items.indexOf(item) + 1, "the Coolify side does not follow the GitHub side");
         assert.match(item, /"Continue manually"/);
         assert.ok(item.includes("https://github.com/settings/apps/new"), item);
         assert.ok(item.includes("http://203.0.113.10:8000/webhooks/source/github/events"), item);
         assert.match(item, /contents read, metadata read, pull requests write and emails read/);
         assert.match(item, /events push and pull_request/);
         assert.match(item, /Sources, \+ Add, a name, Continue, then "Continue manually"/);
-        assert.ok(item.includes("https://coolify.io/docs/applications/sources/github/app"), item);
+        assert.ok(finish.includes("https://coolify.io/docs/applications/sources/github/app"), finish);
         assert.match(item, /homepage URL/);
         assert.match(item, /long random webhook secret/);
-        assert.match(item, /same webhook secret/);
+        assert.match(finish, /same webhook secret/);
         assert.match(item, /client secret and a private key/);
         assert.match(item, /install the App on your repositories/);
-        assert.match(item, /Keys & Tokens, Private Keys/);
-        assert.match(item, /App ID/);
-        assert.match(item, /Installation ID \(the number after \/installations\//);
-        assert.match(item, /Client ID/);
-        assert.ok(!/callback|setup URL/i.test(item), `a callback or setup URL is asked for: ${item}`);
+        assert.match(finish, /Keys & Tokens, Private Keys/);
+        assert.match(finish, /App ID/);
+        assert.match(finish, /Installation ID \(the number after \/installations\//);
+        assert.match(finish, /Client ID/);
+        for (const s of [item, finish]) {
+            assert.ok(!/callback|setup URL/i.test(s), `a callback or setup URL is asked for: ${s}`);
+            assert.ok(!/own (public )?IP|8000 rule|provisioning\.md|remove it afterwards/i.test(s), `the old advice is back: ${s}`);
+        }
         assert.match(item, /with no firewall change/);
         assert.ok(!/hook ranges[^.]*enough/i.test(item), "the push delivery is claimed before a run proved it");
         assert.match(item, /"Register With GitHub"/);
         assert.match(item, /plain HTTP, and not signed in if you use Coolify over the tailnet/);
         assert.ok(!/because you sign in over the tailnet/.test(item), "a reason that is false in internet mode");
-        assert.ok(!/own (public )?IP|8000 rule|provisioning\.md|remove it afterwards/i.test(item), `the old advice is back: ${item}`);
     }
     assert.equal(githubWebhookUrl("198.51.100.4"), "http://198.51.100.4:8000/webhooks/source/github/events");
 });
@@ -144,7 +150,7 @@ test("the token item gives the exact single-quoted line to append, and warns aga
     const item = stillYoursToDo(facts).find((s) => /Coolify API token/.test(s));
     assert.ok(item, "no token item");
     assert.ok(item.endsWith(TOKEN_LINE_COMMAND), item);
-    assert.match(item, /plain shell on the server, not inside Claude Code/);
+    assert.match(item, /Open a shell on the server \(not inside Claude Code\), run this command and paste the token when asked: /);
     assert.match(item, /paste the token when asked/);
     assert.ok(!/<paste token>/.test(item), "the command still needs a placeholder edited");
     assert.match(item, /<id>\|<secret>/);
