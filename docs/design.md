@@ -325,15 +325,22 @@ Each step is a progress event:
    someone signs in in a browser, which cannot happen during a launch, so a held
    connection stops the step at once and says to change the rule to `accept`.
    Every other SSH command has a time limit too.
-4. Wait for the admin account. Tell the person to open `http://<tailnet-ip>:8000`
-   from this computer now and create the admin account, because whoever reaches
-   that page first owns the server, which is why nothing is open to the internet
-   yet. Then turn on two-factor authentication under Settings, General. Poll
+4. Wait for the admin account. Look at `/register` once first. If it has
+   already stopped answering 200, the account exists, as on a resume, so the
+   step carries no ask. Otherwise tell the person to open
+   `http://<tailnet-ip>:8000` from this computer now and create the admin
+   account, because whoever reaches that page first owns the server, which is
+   why nothing is open to the internet yet. Then turn on two-factor
+   authentication, which should be under Settings, General; no real run has
+   confirmed that place yet. Poll
    `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/register`
-   without `-L` until it stops answering 200; Coolify closes registration after
-   the first user and redirects. The first real run saw it answer 302 once the
-   account existed. The wait lasts 20 minutes. If it runs out, the launch stops and
-   names `--resume --admin-created`, which is how the person confirms the account
+   without `-L` until it stops answering 200. Coolify closes registration after
+   the first user, and any real status other than 200 counts as closed; a 000,
+   which means no answer, does not. The first real run saw 302 once the account
+   existed.
+
+   The wait lasts 20 minutes. If it runs out, the launch stops and names
+   `--resume --admin-created`, which is how the person confirms the account
    instead, and the block then says "confirmed by you, not verified". In
    `internet` mode the person must also type `2fa on`, which the skill passes on
    as `--two-factor-on`. Without it the launch stops before step 7, with nothing

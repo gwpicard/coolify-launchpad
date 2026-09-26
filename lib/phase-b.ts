@@ -213,12 +213,27 @@ export const REGISTER_PROBE =
 
 export const ADMIN_WAIT_MS = 20 * 60_000;
 
+/** Ask `/register` once, and give its status code, or "" when nothing answered. */
+export function registerStatus(box: Remote): { code: string; stderr: string } {
+    const r = box.probe(REGISTER_PROBE, 30_000);
+    return { code: r.stdout.trim(), stderr: r.stderr.trim() };
+}
+
+/**
+ * Whether the admin account exists. Any real status other than 200 means
+ * Coolify closed registration. A status of 000, or no answer, means curl got
+ * nothing, which is a reason to keep waiting, not to decide.
+ */
+export function registrationClosed(code: string): boolean {
+    return /^[1-9]\d\d$/.test(code) && code !== "200";
+}
+
 /** What the person is asked to do while step 4 waits. */
 export function adminInstruction(tailnetIp: string): string {
     return (
         `Open http://${tailnetIp}:8000 from this computer now and create the Coolify admin account. ` +
         `Whoever reaches that page first owns the server, which is why nothing is open to the internet yet. ` +
-        `Then turn on two-factor authentication under Settings, General.`
+        `Then turn on two-factor authentication. It should be under Settings, General, but no real launch has confirmed that place yet.`
     );
 }
 
@@ -229,11 +244,7 @@ export function adminNotSeenFinding(server: string): string {
     );
 }
 
-/**
- * Wait until `/register` stops answering 200. Any other status means the
- * first user exists and Coolify closed registration. A status of 000 means
- * curl got no answer, which is a reason to keep waiting, not to stop.
- */
+/** Wait until `/register` stops answering 200, as `registrationClosed` reads it. */
 export async function waitForAdmin(
     box: Remote,
     server: string,
@@ -242,12 +253,11 @@ export async function waitForAdmin(
     try {
         return await pollUntil(
             () => {
-                const r = box.probe(REGISTER_PROBE, 30_000);
-                const code = r.stdout.trim();
-                if (/^[1-9]\d\d$/.test(code) && code !== "200") return { done: true, value: code };
+                const { code, stderr } = registerStatus(box);
+                if (registrationClosed(code)) return { done: true, value: code };
                 return {
                     done: false,
-                    last: code === "200" ? "registration still open" : `no answer (${code || r.stderr.trim() || "nothing"})`,
+                    last: code === "200" ? "registration still open" : `no answer (${code || stderr || "nothing"})`,
                 };
             },
             { timeoutMs: opts.timeoutMs ?? ADMIN_WAIT_MS, intervalMs: opts.intervalMs ?? 5_000, what: "The admin account" },

@@ -148,15 +148,17 @@ interface World {
 
 function world(
     home: string,
-    opts: { probe?: (port: number) => "open" | "closed"; hetznerFirewalls?: ReturnType<typeof launchFirewall>[]; identity?: string; register?: string } = {},
+    opts: { probe?: (port: number) => "open" | "closed"; hetznerFirewalls?: ReturnType<typeof launchFirewall>[]; identity?: string; register?: string | string[] } = {},
 ): World {
     const hetzner = fakeHetzner({ firewalls: opts.hetznerFirewalls ?? [launchFirewall("alpha")], servers: [] });
     const written: string[] = [];
     const w = { events: [] as ProgressEvent[], calls: hetzner.calls, written, home, hooksFetched: 0 } as World;
     // The env file script is run for real against `home`; every other command gets the box as a launch leaves it.
+    // A list of /register codes is answered in turn, and its last code stays.
+    const codes = Array.isArray(opts.register) ? [...opts.register] : [opts.register ?? "302"];
     w.box = fakeRemote((c) => {
         if (c === NODE_IDENTITY_PROBE) return { stdout: opts.identity ?? "instance_id=3001\npublic_ip=203.0.113.10\n" };
-        if (c === REGISTER_PROBE) return { stdout: opts.register ?? "302" };
+        if (c === REGISTER_PROBE) return { stdout: codes.length > 1 ? codes.shift()! : codes[0] };
         if (c.includes("coolify-devops.env") && c.startsWith("set -eu")) {
             const local = c.replaceAll("'/root/", `'${home}/`);
             return { stdout: runLocally(local) };
@@ -192,7 +194,7 @@ function input(over: Partial<PhaseBInput> = {}): PhaseBInput {
 
 test("a launch in github mode with no public lane runs every step in order and ends in the block", async () => {
     await withHomeAsync(async (home) => {
-        const w = world(home);
+        const w = world(home, { register: ["200", "200", "302"] });
         const result = await phaseB(input(), w.deps, (e) => w.events.push(e));
         const done_ = w.events.filter((e) => e.status === "done").map((e) => e.step);
         assert.deepEqual(done_, [
@@ -234,6 +236,28 @@ test("a resume leaves the env file untouched and the skills install skipped", as
         assert.equal(readFileSync(file, "utf8"), before);
         assert.match(events.find((e) => e.step.startsWith("Writing /root") && e.status === "done")?.detail ?? "", /left untouched/);
         assert.equal(events.find((e) => e.step.startsWith("Installing") && e.status === "done")?.detail, "already installed");
+    });
+});
+
+test("the admin ask comes only while /register answers 200, so a resume after the account exists does not repeat it", async () => {
+    const asks = async (home: string, register: string[], over: Partial<PhaseBInput> = {}) => {
+        const w = world(home, { register });
+        await phaseB(input(over), w.deps, (e) => w.events.push(e));
+        return w.events.filter((e) => e.step === "Waiting for the Coolify admin account" && e.status === "started");
+    };
+    await withHomeAsync(async (home) => {
+        const fresh = await asks(home, ["200", "200", "302"]);
+        assert.equal(fresh.length, 1);
+        assert.match(fresh[0].ask ?? "", /create the Coolify admin account/);
+    });
+    await withHomeAsync(async (home) => {
+        const resumed = await asks(home, ["302"], { firstLeg: { host: "100.64.0.7", user: "root" } });
+        assert.equal(resumed.length, 1);
+        assert.equal(resumed[0].ask, undefined, "a resume asked for an account that already exists");
+    });
+    await withHomeAsync(async (home) => {
+        const silent = await asks(home, ["000", "302"]);
+        assert.match(silent[0].ask ?? "", /create the Coolify admin account/, "no answer from /register was read as an account");
     });
 });
 
