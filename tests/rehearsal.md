@@ -84,7 +84,7 @@ checked on every run, because the services behind them change without notice.
   `169.254.169.254/hetzner/v1/metadata/instance-id` answers with the stack's
   server id, and `api.ipify.org` from the box gives the stack's public IP.
 - The probe covers the public IPv4 address only. Hetzner's firewall also guards
-  the server's IPv6 address, and whether 22, 3000, 8000, 6001 and 6002 read
+  the server's IPv6 address, and whether 22, 3000, 8000, 6001, 6002 and 8080 read
   closed over IPv6 is checked by hand from a machine with IPv6, off the tailnet,
   until the probe learns it. A probe from a machine without IPv6 would read every
   port closed and prove nothing, which is why it is not automatic yet.
@@ -126,7 +126,7 @@ Phase B steps 4 to 9, the tooling section, the check and the retire have passed
 
 - The six combinations of public lane and dashboard exposure give exactly the
   rule sets in `docs/server-model.md`, with an empty list for `tailnet` and no
-  public lane, and no combination opens 22, 3000, 6001 or 6002. GitHub's hook
+  public lane, and no combination opens 22, 3000, 6001, 6002 or 8080. GitHub's hook
   ranges come from a saved copy of GitHub's meta answer in
   `tests/fixtures/github-meta.json`, and an answer with no ranges, or one as wide
   as `0.0.0.0/0`, is refused.
@@ -274,7 +274,8 @@ The next rehearsal has to cover what this one did not:
   Coolify's manual route over the tailnet, with no firewall change. The
   automated route failed, because the dashboard was reached only over the
   tailnet. The block now points at the manual route.
-- Traefik publishes 8080, which the probe does not test.
+- Traefik publishes 8080, which this release's probe did not test. The probe
+  now tests it and expects it closed in every lane.
 - Claude Code on the server runs as root. A headless run there refuses to bypass
   permissions and needs an allow-list, and the signed-in account's own connectors
   load on the server too.
