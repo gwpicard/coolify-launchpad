@@ -45,13 +45,14 @@ say "== No AI attribution line or session link in tracked files =="
 # repository is public. The commit-msg hook takes those lines out of a commit
 # message; this check covers the other way in, which is somebody pasting a
 # message into a file. The words are built here rather than written out, so
-# the check does not report itself. The hook and the test that drives it carry
-# the words on purpose, so they are the only files left out.
+# the check does not report itself. The test that drives the hook builds its
+# samples the same way, so it needs no exception. The hook carries the words
+# on purpose, so it is the only file left out.
 attr_session=$(printf 'claude.ai/code/%s' 'session_')
 attr_author=$(printf 'Co-%sed-By: Claude' 'Author')
 attr_vendor=$(printf 'noreply@%s.com' 'anthropic')
 hits=$(git ls-files -co --exclude-standard \
-  | grep -v -x -e '.githooks/commit-msg' -e 'tests/unit/attribution-scrub.test.mjs' \
+  | grep -v -x -e '.githooks/commit-msg' \
   | while IFS= read -r f; do
       [ -f "$f" ] || continue
       grep -HnIiF -e "$attr_session" -e "$attr_author" -e "$attr_vendor" "$f" 2>/dev/null
