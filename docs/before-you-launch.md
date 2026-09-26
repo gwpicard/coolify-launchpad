@@ -17,7 +17,7 @@ which the agent reads from. This page says where to click.
 
 1. If you have no Hetzner account, sign up, confirm your email and add a
    payment method. Hetzner may run an identity check on a new account, and that
-   can take up to a day, so do this well before the launch.
+   can take a day or more, so do this well before the launch.
 2. Sign in to the [Hetzner Cloud Console](https://console.hetzner.cloud/).
 3. Create a new project for this server. Use a new project for each launchpad
    server: the firewall is always named `coolify`, and Hetzner allows only one
@@ -35,9 +35,10 @@ The token stays on your computer. The launchpad never sends it to the server.
    Tailscale app should then show that it is connected.
 2. Open the [DNS page](https://login.tailscale.com/admin/dns) of the Tailscale
    admin console and note your tailnet name. It looks like `tailXXXX.ts.net`,
-   and every address on your tailnet ends with it. If you want a different one,
-   choose it now with Rename tailnet, before any machine joins. A later change
-   can break links to the machines already on it.
+   and every machine name on your tailnet ends with it. If you want a different
+   one, click "Rename tailnet" and pick one of the names Tailscale offers. Do it
+   before you turn on HTTPS certificates in step 3 and before the server joins.
+   A later change can break links to the machines already on it.
 3. On the same page, turn on MagicDNS, then turn on HTTPS certificates.
 
 You create the Coolify admin account over the tailnet, and the launchpad
@@ -95,7 +96,7 @@ you can read the file. It never prints a value.
 
 ## The tools
 
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code), where you type
+[Claude Code](https://code.claude.com/docs), where you type
 `/launch-server`. Then Node 20 or newer, the
 [Pulumi CLI](https://www.pulumi.com/docs/iac/download-install/), and `ssh`. There
 is no Pulumi sign-in: the launchpad keeps its state in `.pulumi/` in this folder.
