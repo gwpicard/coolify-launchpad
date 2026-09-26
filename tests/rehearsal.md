@@ -248,6 +248,8 @@ The next rehearsal has to cover what this one did not:
 - a failed first phase stopping early;
 - which MagicDNS field a real node gives;
 - a real push through GitHub's hook ranges reaching Coolify;
+- a push webhook delivered with the webhook secret set;
+- the manual GitHub App route in `internet` mode;
 - `npx skills add gwpicard/coolify-launchpad` not offering the humanizer;
 - a `--resume` after 22 has closed, leaving the env file untouched;
 - the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
@@ -267,10 +269,11 @@ The next rehearsal has to cover what this one did not:
   ask.
 - At the retire, reply with the bare server name. The IP address was refused,
   and a name with a full stop after it would not match either.
-- The block's advice to put your own IP on the 8000 rule for the GitHub App is
-  not needed. Coolify's manual route for the App works over the tailnet with no
-  firewall change, and its automated route fails for a dashboard reached only
-  over the tailnet.
+- The block of this release told the person to put their own IP on the 8000
+  rule for the GitHub App. That was not needed: in this run the App was made by
+  Coolify's manual route over the tailnet, with no firewall change. The
+  automated route failed, because the dashboard was reached only over the
+  tailnet. The block now points at the manual route.
 - Traefik publishes 8080, which the probe does not test.
 - Claude Code on the server runs as root. A headless run there refuses to bypass
   permissions and needs an allow-list, and the signed-in account's own connectors

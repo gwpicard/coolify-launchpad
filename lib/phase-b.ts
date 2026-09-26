@@ -274,8 +274,8 @@ export const ENV_FILE_NAME = "coolify-devops.env";
 /**
  * The script that writes the env file once. It never touches a file that
  * exists, so a `--resume`, or a file the person has already filled, is left
- * exactly as it was. The token line is a comment: the person adds the token on
- * the server with the command /setup-coolify-devops prints. The launchpad's
+ * exactly as it was. The token line is a comment: the person appends the token
+ * on the server with the command the server block gives. The launchpad's
  * own HCLOUD_TOKEN is never in it.
  *
  * `home` is /root on the server. The unit tests run the same script against a
