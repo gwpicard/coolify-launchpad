@@ -30,6 +30,19 @@ export interface ServerBlockFacts {
     nodeVersion?: string;
 }
 
+/**
+ * The command that adds the token line to the env file. The line has the
+ * `export NAME=value` shape envFileScript writes, with the value single-quoted
+ * because a Coolify token has the form <id>|<secret>. It carries a placeholder
+ * only.
+ */
+export const TOKEN_LINE_COMMAND = `echo "export COOLIFY_ACCESS_TOKEN='<paste token>'" >> ${ENV_FILE}`;
+
+/** Where GitHub delivers the App's webhooks, on the port the github rule opens. */
+export function githubWebhookUrl(publicIp: string): string {
+    return `http://${publicIp}:8000/webhooks/source/github/events`;
+}
+
 const LABEL_WIDTH = 16;
 
 function line(label: string, value: string): string {
@@ -88,16 +101,22 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     if (!f.envTokenSet) {
         items.push(
             `Create the Coolify API token at http://${f.tailnetIp}:8000, Keys & Tokens, API tokens, with the read, write ` +
-            `and deploy scopes and never root. Add it to ${ENV_FILE} on the server with the command ` +
-            `/setup-coolify-devops prints, then open a new shell. It never goes into a chat session.`,
+            `and deploy scopes and never root. On the server, add it with ${TOKEN_LINE_COMMAND}, then open a new ` +
+            `shell. Keep the single quotes: a Coolify token has the form <id>|<secret>, and the | breaks an unquoted ` +
+            `export. Append the line. Do not run the cat > block that /setup-coolify-devops hands over, because it ` +
+            `would overwrite the env file this launch wrote. The token never goes into a chat session.`,
         );
     }
+    const claudeNotes =
+        " Claude Code there runs as root, the only user. claude -p refuses --permission-mode bypassPermissions " +
+        "as root, so a headless run needs an allow-list (--allowedTools). A session signed in with your account " +
+        "also loads that account's personal claude.ai connectors on the server.";
     if (spec.install_tooling) {
-        items.push(`Sign in to Claude Code on the server: ssh root@${f.tailnetIp}, then claude.`);
+        items.push(`Sign in to Claude Code on the server: ssh root@${f.tailnetIp}, then claude.${claudeNotes}`);
     } else {
         items.push(
             `Install Node 22 on the server (coolify-devops needs Node 18 or newer), then Claude Code, then ` +
-            `cd /root && npx -y skills add KasperHonore/coolify-devops -a claude-code -y.`,
+            `cd /root && npx -y skills add KasperHonore/coolify-devops -a claude-code -y.${claudeNotes}`,
         );
     }
     items.push(
@@ -112,11 +131,13 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     }
     if (spec.dashboard !== "tailnet") {
         items.push(
-            "After coolify-devops has accepted the server: the GitHub App, from Coolify's Sources page." +
-            (spec.dashboard === "github"
-                ? " In github mode the registration round trip needs your own public IP on the 8000 rule for that " +
-                "one step; coolify-devops's provisioning.md, section 6, says how, and to remove it afterwards."
-                : ""),
+            `After coolify-devops has accepted the server: the GitHub App, by Coolify's manual route, which works over ` +
+            `the tailnet with no firewall change. In Coolify at http://${f.tailnetIp}:8000, Sources, choose ` +
+            `"Continue manually", then create the App at https://github.com/settings/apps/new with the webhook URL ` +
+            `${githubWebhookUrl(f.publicIp)}, the permissions contents read, metadata read, pull requests write and ` +
+            `emails read, and the events push and pull_request. Do not use "Register With GitHub": it sends the ` +
+            `browser to http://${f.publicIp}:8000, where you are not signed in, because you sign in over the ` +
+            `tailnet. Signing in there sends your password over plain HTTP.`,
         );
     }
     items.push(

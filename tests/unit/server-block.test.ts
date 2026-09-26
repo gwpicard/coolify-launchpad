@@ -6,8 +6,13 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { envFileScript } from "../../lib/phase-b.js";
 import {
     blockPath,
+    ENV_FILE,
+    githubWebhookUrl,
+    TOKEN_LINE_COMMAND,
     renderHandOver,
     renderServerBlock,
     renderStopped,
@@ -88,7 +93,7 @@ test("the list of what is still yours marks nothing done and follows the answers
     assert.ok(base.some((s) => /Coolify API token/.test(s) && /never root/.test(s) && /never goes into a chat/.test(s)));
     assert.ok(base.some((s) => /Sign in to Claude Code/.test(s)));
     assert.ok(base.some((s) => /precondition 3/.test(s)));
-    assert.ok(base.some((s) => /GitHub App/.test(s) && /your own public IP/.test(s)));
+    assert.ok(base.some((s) => /GitHub App/.test(s)));
     assert.ok(!base.some((s) => /DNS token/.test(s)));
     assert.ok(!base.some((s) => /\b(done|✓)\b/i.test(s)));
     const other = stillYoursToDo({ ...facts, envTokenSet: true, spec: { ...spec, public_lane: "apps.example.com", dashboard: "tailnet", install_tooling: false } });
@@ -97,6 +102,68 @@ test("the list of what is still yours marks nothing done and follows the answers
     assert.ok(other.some((s) => /DNS token/.test(s) && /\*\.apps\.example\.com/.test(s)));
     assert.ok(!other.some((s) => /GitHub App/.test(s)));
     assert.ok(base.some((s) => /Never the launchpad's own token/.test(s)));
+});
+
+test("the GitHub App item points at Coolify's manual route and never at opening 8000 to your own IP", () => {
+    for (const dashboard of ["github", "internet"] as const) {
+        const item = stillYoursToDo({ ...facts, spec: { ...spec, dashboard } }).find((s) => /GitHub App/.test(s));
+        assert.ok(item, `no GitHub App item in ${dashboard} mode`);
+        assert.match(item, /"Continue manually"/);
+        assert.ok(item.includes("https://github.com/settings/apps/new"), item);
+        assert.ok(item.includes("http://203.0.113.10:8000/webhooks/source/github/events"), item);
+        assert.match(item, /contents read, metadata read, pull requests write and emails read/);
+        assert.match(item, /events push and pull_request/);
+        assert.match(item, /no firewall change/);
+        assert.match(item, /"Register With GitHub"/);
+        assert.match(item, /plain HTTP/);
+        assert.ok(!/own (public )?IP|8000 rule|provisioning\.md|remove it afterwards/i.test(item), `the old advice is back: ${item}`);
+    }
+    assert.equal(githubWebhookUrl("198.51.100.4"), "http://198.51.100.4:8000/webhooks/source/github/events");
+});
+
+test("the token item gives the exact single-quoted line to append, and warns against overwriting the env file", () => {
+    assert.equal(
+        TOKEN_LINE_COMMAND,
+        `echo "export COOLIFY_ACCESS_TOKEN='<paste token>'" >> /root/.config/coolify-devops.env`,
+    );
+    const item = stillYoursToDo(facts).find((s) => /Coolify API token/.test(s));
+    assert.ok(item, "no token item");
+    assert.ok(item.includes(TOKEN_LINE_COMMAND), item);
+    assert.match(item, /<id>\|<secret>/);
+    assert.match(item, /overwrite the env file/);
+    assert.match(item, /cat >/);
+    assert.ok(!/add it to \S+ on the server with the command/.test(item), "the old pointer is back");
+});
+
+test("the token line appended to the env file the launch wrote sources a <id>|<secret> token intact", () => {
+    const home = mkdtempSync(join(tmpdir(), "token-line-"));
+    try {
+        const made = spawnSync("bash", ["-c", envFileScript("http://localhost:8000", home)], { encoding: "utf8" });
+        assert.equal(made.status, 0, made.stderr);
+        const file = join(home, ".config", "coolify-devops.env");
+        const standIn = "7|stand-in-not-a-token";
+        const append = TOKEN_LINE_COMMAND.replace("<paste token>", standIn).replace(ENV_FILE, file);
+        const r = spawnSync("bash", ["-c", `${append} && . '${file}' && [ "$COOLIFY_ACCESS_TOKEN" = '${standIn}' ] && echo match`], {
+            encoding: "utf8",
+        });
+        assert.equal(r.status, 0, r.stderr);
+        assert.equal(r.stdout.trim(), "match");
+        assert.match(readFileSync(file, "utf8"), /^export COOLIFY_BASE_URL=http:\/\/localhost:8000$/m);
+    } finally {
+        rmSync(home, { recursive: true, force: true });
+    }
+});
+
+test("the list notes that claude -p will not bypass permissions as root, and that the account's connectors load", () => {
+    for (const install_tooling of [true, false]) {
+        const items = stillYoursToDo({ ...facts, spec: { ...spec, install_tooling } });
+        const item = items.find((s) => /Claude Code/.test(s));
+        assert.ok(item, `no Claude Code item with install_tooling ${install_tooling}`);
+        assert.match(item, /claude -p refuses --permission-mode bypassPermissions/);
+        assert.match(item, /as root/);
+        assert.match(item, /allow-list/);
+        assert.match(item, /personal claude\.ai connectors/);
+    }
 });
 
 test("the hand-over is the block, then the list, and it is written to servers/<name>.block.txt", () => {
