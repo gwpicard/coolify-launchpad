@@ -97,7 +97,7 @@ history. A session that did any of those once wrote a live token into its own
 transcript.
 
 A token is never pasted into a session. The Coolify API token is created in the
-Coolify UI and appended to the env file on the server by the person, with the line
+Coolify UI and appended to the env file on the server by the person, with the command
 the server block gives. The Tailscale auth key reaches the server inside cloud-init,
 base64 encoded, and nowhere else.
 

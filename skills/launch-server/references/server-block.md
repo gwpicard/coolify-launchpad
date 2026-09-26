@@ -28,9 +28,10 @@ The same text is in that file, which Git ignores.
    each one is a console step or happens on the server.
 5. The first item, when present, is the Coolify API token. Repeat that it is
    created in the Coolify dashboard and added on the server, and that it never
-   goes into a chat session, this one included. The item gives the line to
-   append. Say to keep its single quotes and to append it, never to overwrite
-   the env file this launch wrote.
+   goes into a chat session, this one included. The item gives a command that
+   asks for the token and appends it to the env file. Say to run it in a plain
+   shell on the server, not inside Claude Code, and to append, never to
+   overwrite the env file this launch wrote.
 
 ## How to end
 

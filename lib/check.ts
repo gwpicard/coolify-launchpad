@@ -162,7 +162,7 @@ export async function checkServer(spec: ServerSpec, deps: CheckDeps): Promise<Ch
     else add("ok", envWhat, "present, mode 600, sourced by .bashrc");
     if (facts.envFile) {
         if (facts.tokenSet) add("ok", "COOLIFY_ACCESS_TOKEN", "set (checked for presence only)");
-        else add("to do", "COOLIFY_ACCESS_TOKEN", "not set yet: create it in Coolify and add it on the server");
+        else add("to do", "COOLIFY_ACCESS_TOKEN", "not set yet: create it in Coolify and add it on the server with the command the server block gives");
     }
     if (!facts.coolifyAnswers) add("broken", "Coolify on the box", "http://127.0.0.1:8000 does not answer on the server");
 

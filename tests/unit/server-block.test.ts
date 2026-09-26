@@ -113,9 +113,23 @@ test("the GitHub App item points at Coolify's manual route and never at opening 
         assert.ok(item.includes("http://203.0.113.10:8000/webhooks/source/github/events"), item);
         assert.match(item, /contents read, metadata read, pull requests write and emails read/);
         assert.match(item, /events push and pull_request/);
-        assert.match(item, /no firewall change/);
+        assert.match(item, /Sources, \+ Add, a name, Continue, then "Continue manually"/);
+        assert.ok(item.includes("https://coolify.io/docs/applications/sources/github/app"), item);
+        assert.match(item, /homepage URL/);
+        assert.match(item, /long random webhook secret/);
+        assert.match(item, /same webhook secret/);
+        assert.match(item, /client secret and a private key/);
+        assert.match(item, /install the App on your repositories/);
+        assert.match(item, /Keys & Tokens, Private Keys/);
+        assert.match(item, /App ID/);
+        assert.match(item, /Installation ID \(the number after \/installations\//);
+        assert.match(item, /Client ID/);
+        assert.ok(!/callback|setup URL/i.test(item), `a callback or setup URL is asked for: ${item}`);
+        assert.match(item, /with no firewall change/);
+        assert.ok(!/hook ranges[^.]*enough/i.test(item), "the push delivery is claimed before a run proved it");
         assert.match(item, /"Register With GitHub"/);
-        assert.match(item, /plain HTTP/);
+        assert.match(item, /plain HTTP, and not signed in if you use Coolify over the tailnet/);
+        assert.ok(!/because you sign in over the tailnet/.test(item), "a reason that is false in internet mode");
         assert.ok(!/own (public )?IP|8000 rule|provisioning\.md|remove it afterwards/i.test(item), `the old advice is back: ${item}`);
     }
     assert.equal(githubWebhookUrl("198.51.100.4"), "http://198.51.100.4:8000/webhooks/source/github/events");
@@ -124,11 +138,15 @@ test("the GitHub App item points at Coolify's manual route and never at opening 
 test("the token item gives the exact single-quoted line to append, and warns against overwriting the env file", () => {
     assert.equal(
         TOKEN_LINE_COMMAND,
-        `echo "export COOLIFY_ACCESS_TOKEN='<paste token>'" >> /root/.config/coolify-devops.env`,
+        `read -rsp 'Coolify token: ' T && printf "export COOLIFY_ACCESS_TOKEN='%s'\\n" "$T" >> ` +
+            `/root/.config/coolify-devops.env && unset T; echo`,
     );
     const item = stillYoursToDo(facts).find((s) => /Coolify API token/.test(s));
     assert.ok(item, "no token item");
-    assert.ok(item.includes(TOKEN_LINE_COMMAND), item);
+    assert.ok(item.endsWith(TOKEN_LINE_COMMAND), item);
+    assert.match(item, /plain shell on the server, not inside Claude Code/);
+    assert.match(item, /paste the token when asked/);
+    assert.ok(!/<paste token>/.test(item), "the command still needs a placeholder edited");
     assert.match(item, /<id>\|<secret>/);
     assert.match(item, /overwrite the env file/);
     assert.match(item, /cat >/);
@@ -142,12 +160,15 @@ test("the token line appended to the env file the launch wrote sources a <id>|<s
         assert.equal(made.status, 0, made.stderr);
         const file = join(home, ".config", "coolify-devops.env");
         const standIn = "7|stand-in-not-a-token";
-        const append = TOKEN_LINE_COMMAND.replace("<paste token>", standIn).replace(ENV_FILE, file);
-        const r = spawnSync("bash", ["-c", `${append} && . '${file}' && [ "$COOLIFY_ACCESS_TOKEN" = '${standIn}' ] && echo match`], {
-            encoding: "utf8",
-        });
+        const append = TOKEN_LINE_COMMAND.replace(ENV_FILE, file);
+        const r = spawnSync(
+            "bash",
+            ["-c", `${append}\n. '${file}' && [ "$COOLIFY_ACCESS_TOKEN" = '${standIn}' ] && [ -z "\${T:-}" ] && echo match`],
+            { encoding: "utf8", input: `${standIn}\n` },
+        );
         assert.equal(r.status, 0, r.stderr);
         assert.equal(r.stdout.trim(), "match");
+        assert.ok(!r.stdout.includes(standIn) && !r.stderr.includes(standIn), "the token was echoed");
         assert.match(readFileSync(file, "utf8"), /^export COOLIFY_BASE_URL=http:\/\/localhost:8000$/m);
     } finally {
         rmSync(home, { recursive: true, force: true });
@@ -157,7 +178,7 @@ test("the token line appended to the env file the launch wrote sources a <id>|<s
 test("the list notes that claude -p will not bypass permissions as root, and that the account's connectors load", () => {
     for (const install_tooling of [true, false]) {
         const items = stillYoursToDo({ ...facts, spec: { ...spec, install_tooling } });
-        const item = items.find((s) => /Claude Code/.test(s));
+        const item = items.find((s) => /^(Sign in to Claude Code|Install Node 22)/.test(s));
         assert.ok(item, `no Claude Code item with install_tooling ${install_tooling}`);
         assert.match(item, /claude -p refuses --permission-mode bypassPermissions/);
         assert.match(item, /as root/);
