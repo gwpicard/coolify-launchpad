@@ -252,6 +252,7 @@ The next rehearsal has to cover what this one did not:
 - the manual GitHub App route in `internet` mode;
 - `npx skills add gwpicard/coolify-launchpad` not offering the humanizer;
 - a `--resume` after 22 has closed, leaving the env file untouched;
+- the probe reading 8080 closed on a real server;
 - the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
 - where Coolify keeps two-factor authentication (the ask says Settings, General);
 - a resume after the account exists going on with no ask;

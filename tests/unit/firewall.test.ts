@@ -45,7 +45,7 @@ test("the six lane combinations equal the table exactly", () => {
     }
 });
 
-test("tailnet mode with no public lane sends an empty list, and no combination opens 22 or anything outbound", () => {
+test("tailnet mode with no public lane sends an empty list, and no combination opens 22, 3000, 6001, 6002, 8080 or anything outbound", () => {
     assert.deepEqual(laneRules({ public_lane: "none", dashboard: "tailnet" }), []);
     for (const [public_lane, dashboard] of SIX) {
         for (const r of laneRules({ public_lane, dashboard }, HOOKS)) {
