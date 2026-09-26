@@ -3,8 +3,10 @@
 // finds a dead link.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { skillFolders } from '../../scripts/skill-folders.mjs';
 
 const root = new URL('../..', import.meta.url).pathname;
 const must = [
@@ -26,7 +28,22 @@ test('CLAUDE.md is the one-line import', () => {
   assert.equal(readFileSync(join(root, 'CLAUDE.md'), 'utf8').trim(), '@AGENTS.md');
 });
 
-for (const name of readdirSync(join(root, 'skills'))) {
+// A Mac checkout can hold a .DS_Store here that a clean clone never has, so
+// the listing reads directories only.
+test('the skills listing skips stray files and dot folders', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'skills-'));
+  try {
+    cpSync(join(root, 'skills'), dir, { recursive: true });
+    writeFileSync(join(dir, '.DS_Store'), '');
+    writeFileSync(join(dir, 'notes.txt'), '');
+    mkdirSync(join(dir, '.hidden'));
+    assert.deepEqual(skillFolders(dir), ['check-server', 'launch-server', 'retire-server']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+for (const name of skillFolders(join(root, 'skills'))) {
   test(`skills/${name} has the agreed frontmatter and a generated adapter`, () => {
     const src = readFileSync(join(root, 'skills', name, 'SKILL.md'), 'utf8');
     const fm = src.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '';
