@@ -2,15 +2,14 @@ import { readFileSync } from "node:fs";
 import { b64 } from "../../lib/secrets.js";
 
 /**
- * The Coolify version passed to the installer as its positional argument.
+ * The Coolify version passed to the installer as its positional argument, so
+ * every launch installs exactly this version.
  *
- * Left unset until a real run has confirmed that the installer takes a
- * version this way (tests/rehearsal.md lists it). The first real run left it
- * unset and got 4.3.23. Unset, the installer installs its current release.
- * Set it to a version string such as the one that run observed, and every
- * later launch installs exactly that.
+ * The second real run passed it this way, and `docker inspect coolify` on the
+ * box showed coollabsio/coolify:4.3.23 (tests/rehearsal.md records it). Move it
+ * to a newer version only after a real run on that version.
  */
-export const COOLIFY_VERSION: string | undefined = undefined;
+export const COOLIFY_VERSION: string = "4.3.23";
 
 const snippetsDir = new URL("./snippets/", import.meta.url);
 
@@ -68,13 +67,13 @@ export function buildUserData(args: BuildUserDataArgs): string {
         throw new Error("TAILSCALE_AUTH_KEY is empty; the server could not join the tailnet");
     }
     const version = args.coolifyVersion ?? COOLIFY_VERSION;
-    if (version !== undefined && !/^[0-9A-Za-z.+-]+$/.test(version)) {
+    if (!/^[0-9A-Za-z.+-]+$/.test(version)) {
         throw new Error(`"${version}" does not look like a Coolify version`);
     }
     const vars: Record<string, string> = {
         SERVER_NAME: args.serverName,
         TAILSCALE_KEY_B64: b64(args.tailscaleAuthKey),
-        COOLIFY_VERSION_ARG: version ?? "",
+        COOLIFY_VERSION_ARG: version,
     };
     const sections = ["#!/bin/bash", ...sectionsFor(args.installTooling).map((s) => substitute(snippet(s), vars))];
     const script = sections.join("\n\n");

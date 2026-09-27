@@ -64,7 +64,7 @@ const firewall = new hcloud.Firewall(
 
 // User-data only matters on first boot, and a change to it would make Pulumi
 // replace the machine, and a replaced machine has no /data/coolify. So a later
-// launch after pinning COOLIFY_VERSION, or with a new auth key, leaves the
+// launch after COOLIFY_VERSION moves, or with a new auth key, leaves the
 // running server alone. tests/offline-preview.sh proves the plan stays empty.
 const server = new hcloud.Server(
     "coolify-server",

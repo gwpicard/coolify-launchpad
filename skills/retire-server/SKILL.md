@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a clone of coolify-launchpad on the operator's own computer, with the Pulumi CLI and the local state that launched the server. Needs network access to the Hetzner API.
 metadata:
   author: gwpicard
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # /retire-server

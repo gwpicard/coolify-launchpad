@@ -23,13 +23,13 @@ tells the whole story.
 |---|---|
 | What it is | Commands you type into Claude Code on your own computer, and a Pulumi program behind them. |
 | Who it is for | Someone who will own a team's server and has never set one up. |
-| Works with | [Hetzner Cloud](https://www.hetzner.com/cloud), [Tailscale](https://tailscale.com), and [Coolify](https://coolify.io) 4.x. Claude Code in this version. |
+| Works with | [Hetzner Cloud](https://www.hetzner.com/cloud), [Tailscale](https://tailscale.com), and [Coolify](https://coolify.io) 4.3.23, the version every launch installs. Claude Code in this version. |
 | You need | Claude Code, Node 20 or newer, the Pulumi CLI, a Hetzner Cloud account with a read and write API token, and a Tailscale tailnet with MagicDNS and HTTPS enabled, with this computer on it. |
 | Install | Clone this repository. That is the whole install in this version. |
 | Then type | `/launch-server` |
 | How long a launch takes | One interview of six questions, then about five minutes while the server builds, with one browser step about three minutes in. |
 | Where it runs | On your own computer, in the cloned folder. The server it makes is on Hetzner. |
-| Status | Version 0.1.0. Run once for real on Hetzner, in `github` mode with no public lane; `tests/rehearsal.md` lists what that run left unconfirmed. |
+| Status | Version 0.1.1. Run twice for real on Hetzner, both in `github` mode, the second with a public lane; `tests/rehearsal.md` lists what is still unconfirmed. |
 | Licence | MIT |
 | Cost | Free. You pay for the server and the coding agent subscription. |
 
@@ -240,10 +240,11 @@ tools, mostly on the private network. It assumes Hetzner, Tailscale, and Coolify
 The kit is free software, provided as is, under the [MIT licence](LICENSE).
 There is no warranty, and the licence's own terms are the ones that apply.
 
-This version has been run once against a real server, in `github` mode with no
-public lane. `internet` mode and the public lane have not been run yet. The
-rehearsal record in `tests/rehearsal.md` says which facts that run confirmed
-and which are still open.
+This version has been run twice against a real server, both times in `github`
+mode: first with no public lane, then with a public lane on a DuckDNS name.
+`internet` mode has not been run yet. The rehearsal record in
+`tests/rehearsal.md` says which facts the runs confirmed and which are still
+open.
 
 The commands verify what they can reach from your computer and from the server.
 A matched port probe means the ports you can see answered as expected, which is

@@ -49,6 +49,26 @@ export function githubWebhookUrl(publicIp: string): string {
     return `http://${publicIp}:8000/webhooks/source/github/events`;
 }
 
+/**
+ * GitHub's form for a new App, filled in from the block's own addresses. The
+ * second real run made its App from a link with exactly these parameter names,
+ * and every field landed. The webhook secret is left out on purpose: the person
+ * types it, so it never sits in a link or a log.
+ */
+export function githubAppLink(name: string, coolifyUrl: string, publicIp: string): string {
+    const e = encodeURIComponent;
+    return (
+        `https://github.com/settings/apps/new?name=${e(name)}&url=${e(coolifyUrl)}` +
+        `&webhook_active=true&webhook_url=${e(githubWebhookUrl(publicIp))}&public=false` +
+        `&contents=read&metadata=read&pull_requests=write&emails=read&events[]=push&events[]=pull_request`
+    );
+}
+
+/** A DuckDNS name answers every name under it, so it needs no wildcard record. */
+export function isDuckDns(suffix: string): boolean {
+    return suffix === "duckdns.org" || suffix.endsWith(".duckdns.org");
+}
+
 const LABEL_WIDTH = 16;
 
 function line(label: string, value: string): string {
@@ -92,8 +112,12 @@ export function renderServerBlock(f: ServerBlockFacts): string {
         line("Firewall", `Hetzner firewall "coolify", 22 closed; probe from the operator's machine matched the expectation table`),
         line("Env file", `${ENV_FILE}, mode ${f.envMode}, sourced by .bashrc; ${envToken}`),
         line("On the box", onTheBox),
-        line("Next", "on the server, run /setup-coolify-devops; its step 1 interview confirms this block, and once the"),
-        continuation("token is in the env file, a new session resumes at its step 2"),
+        line("Next", "on the server, run /setup-coolify-devops; its step 1 interview confirms this block;"),
+        continuation(
+            f.envTokenSet
+                ? "the token is already in the env file, so it goes on to its step 2"
+                : "once the token is in the env file, a new session resumes at its step 2",
+        ),
     ].join("\n");
 }
 
@@ -118,7 +142,9 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     const claudeNotes =
         " Claude Code there runs as root, the only user. claude -p refuses --permission-mode bypassPermissions " +
         "as root, so a headless run needs an allow-list (--allowedTools). A session signed in with your account " +
-        "also loads that account's personal claude.ai connectors on the server.";
+        "also loads that account's personal claude.ai connectors on the server. Start claude from an interactive " +
+        "shell, as here: a session started from a shell that is not interactive, such as bash -lc, " +
+        "ssh host 'command' or cron, does not see the token in the env file.";
     if (spec.install_tooling) {
         items.push(`Sign in to Claude Code on the server: ssh root@${f.tailnetIp}, then claude.${claudeNotes}`);
     } else {
@@ -133,22 +159,35 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     );
     if (spec.public_lane !== "none") {
         items.push(
-            `The DNS token and the wildcard record for *.${spec.public_lane}, which /setup-coolify-devops asks for ` +
-            `as its precondition 4.`,
+            isDuckDns(spec.public_lane)
+                ? `The DuckDNS token, for coolify-devops's DuckDNS updater, which /setup-coolify-devops asks for as ` +
+                  `its precondition 4. No wildcard record is needed: DuckDNS already answers every name under ` +
+                  `${spec.public_lane}.`
+                : `The DNS token and the wildcard record for *.${spec.public_lane}, which /setup-coolify-devops asks ` +
+                  `for as its precondition 4.`,
+        );
+        items.push(
+            `In Coolify at http://${f.tailnetIp}:8000, set the server's Wildcard Domain to ` +
+            `https://${spec.public_lane}. It should be under Servers, localhost, General. The public lane needs it, and ` +
+            `coolify-devops's tools cannot write it, so it is done by hand.`,
         );
     }
     if (spec.dashboard !== "tailnet") {
         items.push(
             `After coolify-devops has accepted the server: the GitHub App, by Coolify's manual route. ` +
             `In Coolify at http://${f.tailnetIp}:8000, go to Sources, + Add, a name, ` +
-            `Continue, then "Continue manually". The first real run made the App this way over the tailnet, with no ` +
-            `firewall change. Use it rather than "Register With GitHub", which sends the browser to ` +
+            `Continue, then "Continue manually". Two real runs made the App this way over the tailnet, with no ` +
+            `firewall change, and in the second a push reached Coolify through the App's webhook. Use it rather ` +
+            `than "Register With GitHub", which sends the browser to ` +
             `http://${f.publicIp}:8000: plain HTTP, and not signed in if you use Coolify over the tailnet. ` +
-            `At https://github.com/settings/apps/new, give the App a homepage URL (the Coolify URL, ` +
-            `http://${f.tailnetIp}:8000), the webhook URL ${githubWebhookUrl(f.publicIp)} and a long random webhook ` +
-            `secret. Give it the permissions contents read, metadata read, pull requests write and emails read, and ` +
-            `the events push and pull_request. Generate a client secret and a private key, and install the App on ` +
-            `your repositories.`,
+            `Then open this link, which fills in GitHub's form for a new App at https://github.com/settings/apps/new: ` +
+            `${githubAppLink(spec.name, `http://${f.tailnetIp}:8000`, f.publicIp)} ` +
+            `It sets the name. App names are unique across GitHub, so change it if GitHub says it is taken. It also sets ` +
+            `the homepage URL (the Coolify URL, http://${f.tailnetIp}:8000), ` +
+            `the webhook URL ${githubWebhookUrl(f.publicIp)}, the permissions contents read, metadata read, pull ` +
+            `requests write and emails read, and the events push and pull_request. Type a long random webhook ` +
+            `secret into the form yourself; the link leaves it out. Generate a client secret and a private key, and ` +
+            `install the App on your repositories.`,
         );
         items.push(
             `Then finish the GitHub App in Coolify, as Coolify's own steps describe (${COOLIFY_GITHUB_APP_DOCS}). ` +

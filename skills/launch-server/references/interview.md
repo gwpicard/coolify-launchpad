@@ -49,7 +49,8 @@ team? My guess: no. Internal tools stay on your tailnet and need no open port."
 A yes needs a domain the team owns, or a DuckDNS one. Record the suffix the
 public tools will live under, such as `apps.example.com`. The launchpad opens
 ports 80 and 443 for it. Setting up the wildcard record is coolify-devops's
-work, later. In the spec this is `public_lane`: `none`, or the suffix.
+work, later. A DuckDNS name needs none, because DuckDNS already answers every
+name under it. In the spec this is `public_lane`: `none`, or the suffix.
 
 ## 4. Who may reach the Coolify dashboard
 

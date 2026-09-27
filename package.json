@@ -1,6 +1,6 @@
 {
   "name": "coolify-launchpad",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Rent a server, install Coolify, join the tailnet, lock the firewall, hand over. The missing link between AI Build Kit and coolify-devops. Clone this repository and type /launch-server in Claude Code.",
   "type": "module",
