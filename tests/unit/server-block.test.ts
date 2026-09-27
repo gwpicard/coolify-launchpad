@@ -11,7 +11,9 @@ import { envFileScript } from "../../lib/phase-b.js";
 import {
     blockPath,
     ENV_FILE,
+    githubAppLink,
     githubWebhookUrl,
+    isDuckDns,
     TOKEN_LINE_COMMAND,
     renderHandOver,
     renderServerBlock,
@@ -88,6 +90,35 @@ test("each answer changes its own line", () => {
     assert.match(ipv4, /confirmed by you, not verified/);
 });
 
+test("the Next line follows the token: a new session resumes at step 2 only while the token is still to fill", () => {
+    const toFill = renderServerBlock(facts);
+    assert.match(toFill, /\n {16}once the token is in the env file, a new session resumes at its step 2$/);
+    const set = renderServerBlock({ ...facts, envTokenSet: true });
+    assert.match(set, /\n {16}the token is already in the env file, so it goes on to its step 2$/);
+    assert.ok(!/once the token is in the env file/.test(set), "the Next line waits for a token that is already set");
+});
+
+test("a public lane adds the DNS item and the Wildcard Domain item, worded for DuckDNS when the suffix is one", () => {
+    const own = stillYoursToDo({ ...facts, spec: { ...spec, public_lane: "apps.example.com" } });
+    assert.ok(own.some((s) => /DNS token and the wildcard record for \*\.apps\.example\.com/.test(s)));
+    const duck = stillYoursToDo({ ...facts, spec: { ...spec, public_lane: "team-x.duckdns.org" } });
+    const dns = duck.find((s) => /precondition 4/.test(s));
+    assert.ok(dns, "no DNS item for a DuckDNS lane");
+    assert.match(dns, /^The DuckDNS token, for coolify-devops's DuckDNS updater/);
+    assert.match(dns, /No wildcard record is needed/);
+    assert.ok(!/\*\.team-x/.test(dns), `a DuckDNS lane is asked for a wildcard record: ${dns}`);
+    for (const items of [own, duck]) {
+        const wild = items.find((s) => /Wildcard Domain/.test(s));
+        assert.ok(wild, "no Wildcard Domain item for a public lane");
+        assert.match(wild, /Servers, localhost, General/);
+        assert.match(wild, /cannot write it/);
+    }
+    assert.match(duck.find((s) => /Wildcard Domain/.test(s)) ?? "", /to https:\/\/team-x\.duckdns\.org,/);
+    assert.ok(!stillYoursToDo(facts).some((s) => /Wildcard Domain|precondition 4/.test(s)), "no public lane, yet a lane item");
+    assert.ok(isDuckDns("duckdns.org") && isDuckDns("a.duckdns.org"));
+    assert.ok(!isDuckDns("notduckdns.org") && !isDuckDns("duckdns.org.example.com"));
+});
+
 test("the list of what is still yours marks nothing done and follows the answers", () => {
     const base = stillYoursToDo(facts);
     assert.ok(base.some((s) => /Coolify API token/.test(s) && /never root/.test(s) && /never goes into a chat/.test(s)));
@@ -114,6 +145,9 @@ test("the GitHub App item points at Coolify's manual route and never at opening 
         assert.equal(items.indexOf(finish), items.indexOf(item) + 1, "the Coolify side does not follow the GitHub side");
         assert.match(item, /"Continue manually"/);
         assert.ok(item.includes("https://github.com/settings/apps/new"), item);
+        const link = githubAppLink("alpha", "http://100.64.0.7:8000", "203.0.113.10");
+        assert.ok(item.includes(` ${link} `), `the pre-filled link is missing: ${item}`);
+        assert.match(item, /Type a long random webhook secret into the form yourself; the link leaves it out/);
         assert.ok(item.includes("http://203.0.113.10:8000/webhooks/source/github/events"), item);
         assert.match(item, /contents read, metadata read, pull requests write and emails read/);
         assert.match(item, /events push and pull_request/);
@@ -139,6 +173,17 @@ test("the GitHub App item points at Coolify's manual route and never at opening 
         assert.ok(!/because you sign in over the tailnet/.test(item), "a reason that is false in internet mode");
     }
     assert.equal(githubWebhookUrl("198.51.100.4"), "http://198.51.100.4:8000/webhooks/source/github/events");
+});
+
+test("the GitHub App link uses the parameter names a real run proved, encodes the values, and carries no secret", () => {
+    assert.equal(
+        githubAppLink("alpha", "http://100.64.0.7:8000", "203.0.113.10"),
+        "https://github.com/settings/apps/new?name=alpha&url=http%3A%2F%2F100.64.0.7%3A8000" +
+            "&webhook_active=true&webhook_url=http%3A%2F%2F203.0.113.10%3A8000%2Fwebhooks%2Fsource%2Fgithub%2Fevents" +
+            "&public=false&contents=read&metadata=read&pull_requests=write&emails=read&events[]=push&events[]=pull_request",
+    );
+    assert.ok(!/secret/i.test(githubAppLink("alpha", "http://100.64.0.7:8000", "203.0.113.10")));
+    assert.match(githubAppLink("a b&c", "http://x", "203.0.113.10"), /\?name=a%20b%26c&/);
 });
 
 test("the token item gives the exact single-quoted line to append, and warns against overwriting the env file", () => {

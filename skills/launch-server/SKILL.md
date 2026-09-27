@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a clone of coolify-launchpad on the operator's own computer, with Node 20 or newer, the Pulumi CLI, and this computer on the Tailscale tailnet. Needs network access to the Hetzner API and to the new server.
 metadata:
   author: gwpicard
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # /launch-server
@@ -83,6 +83,15 @@ template.
 
 ## 3. Before you launch
 
+First look for work already done. If `.env.<name>` exists, run the preflight
+command below before any console step. It checks presence only and names keys,
+never values. When it says all three keys are set, tell the person, and offer to
+skip the console steps and go straight to the machine checks and the two
+confirmations. In the second real run the file was already full and the person
+was still walked through all five steps. Each launch needs a new auth key, so
+ask whether the key in the file is new before you skip. If a key is missing,
+or the person would rather go through the steps, walk them as below.
+
 Walk the person through [references/preflight.md](references/preflight.md) in
 its order: the Hetzner project and token, Tailscale on this computer, the tailnet
 policy, the auth key, and the env file. Each console step has a section in
@@ -158,9 +167,18 @@ browser now. Tell them in the chat as well, at once, using the address in the
 1. Open `http://<tailnet-ip>:8000` in a browser on this computer, now.
 2. Create the Coolify admin account there. Whoever reaches that page first owns
    the server, which is why nothing is open to the internet yet.
-3. Turn on two-factor authentication for that account, where the `ask` text
+3. Fill in every field, use a strong password (upper and lower case letters, a
+   number and a symbol), and submit the form once. Coolify accepts about five
+   submits a minute from one address, failed ones included. If the page answers
+   HTTP 429, wait two minutes before one more careful submit.
+4. Turn on two-factor authentication for that account, where the `ask` text
    says. No real launch has confirmed that place yet, so if the setting is not
    there, ask the person to look through Coolify's settings for it.
+
+A notification is not enough on its own: in the second real run one was sent and
+the person still missed the ask. So keep reading the log, and when the person
+next writes anything while the step is still waiting, repeat the ask before you
+answer them.
 
 The launch waits up to 20 minutes and carries on by itself once Coolify closes
 its registration page. The person never types a password into this

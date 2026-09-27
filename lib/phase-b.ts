@@ -228,11 +228,18 @@ export function registrationClosed(code: string): boolean {
     return /^[1-9]\d\d$/.test(code) && code !== "200";
 }
 
-/** What the person is asked to do while step 4 waits. */
+/**
+ * What the person is asked to do while step 4 waits. Coolify 4.3.23 accepts
+ * about five submits of the register form a minute from one address, failed
+ * ones included; the second real run hit its HTTP 429.
+ */
 export function adminInstruction(tailnetIp: string): string {
     return (
         `Open http://${tailnetIp}:8000 from this computer now and create the Coolify admin account. ` +
         `Whoever reaches that page first owns the server, which is why nothing is open to the internet yet. ` +
+        `Fill in every field, use a strong password (upper and lower case letters, a number and a symbol), and ` +
+        `submit the form once. Coolify accepts about five submits a minute from one address; after an HTTP 429, ` +
+        `wait two minutes before you try again. ` +
         `Then turn on two-factor authentication. It should be under Settings, General, but no real launch has confirmed that place yet.`
     );
 }

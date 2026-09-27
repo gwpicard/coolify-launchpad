@@ -59,7 +59,8 @@ What the launchpad hands over, as unmarked steps with the exact console path or 
 
 - The Coolify API token, created in the Coolify UI and added to the env file on the server. It never enters a launchpad session.
 - The `autoApprovers.services` policy entry and the Tailscale OAuth client for the registrar.
-- The DNS token, only when there is a public lane.
+- The DNS token, only when there is a public lane. A DuckDNS name needs no wildcard record, because DuckDNS already answers every name under it.
+- Coolify's server Wildcard Domain, only when there is a public lane. coolify-devops's tools cannot write it.
 - The GitHub App, after coolify-devops has accepted the server.
 
 ## The server block
@@ -77,21 +78,29 @@ Admin:          created by you over the tailnet; Coolify's registration page clo
 Firewall:       Hetzner firewall "coolify", 22 closed; probe from the operator's machine matched the expectation table
 Env file:       /root/.config/coolify-devops.env, mode 600, sourced by .bashrc; the token line is still to fill | the token line is set
 On the box:     Node 22, git, jq, Claude Code, coolify-devops skills in /root | git, jq only
-Next:           on the server, run /setup-coolify-devops; its step 1 interview confirms this block, and once the
-                token is in the env file, a new session resumes at its step 2
+Next:           on the server, run /setup-coolify-devops; its step 1 interview confirms this block;
+                once the token is in the env file, a new session resumes at its step 2 | the token is already in the env file, so it goes on to its step 2
 ```
 
-The Tailnet line names root rather than a group. The launchpad cannot read the tailnet policy, so it cannot say which group the grant names. What it can say is that root on the node answered Tailscale SSH from this computer with every key method switched off. The Admin line says how the launch knew the account existed: Coolify's `/register` page stopped answering 200, or the person said so with `--admin-created`. When only `127.0.0.1:8000` answers on the box, the Coolify line and the env file both use that address instead of `localhost`.
+The Tailnet line names root rather than a group. The launchpad cannot read the tailnet policy, so it cannot say which group the grant names. What it can say is that root on the node answered Tailscale SSH from this computer with every key method switched off. The Admin line says how the launch knew the account existed: Coolify's `/register` page stopped answering 200, or the person said so with `--admin-created`. When only `127.0.0.1:8000` answers on the box, the Coolify line and the env file both use that address instead of `localhost`. The Next line follows the Env file line: while the token is still to fill, it says a new session resumes once the token is in; once `/check-server` reads the token as set, it says setup goes on to its step 2.
 
-After the block comes a list headed "Still yours to do". Each item carries the exact console path or command. None is marked done, because the launchpad cannot verify a console step it did not perform. The list follows the answers: the Coolify token until it is set, signing in to Claude Code or installing Node, the tailnet policy entries and OAuth client that `/setup-coolify-devops` hands over as its precondition 3, the DNS token when there is a public lane, and the GitHub App in `github` or `internet` mode. An optional last item covers a separate Hetzner token for coolify-devops, never the launchpad's own.
+After the block comes a list headed "Still yours to do". Each item carries the exact console path or command. None is marked done, because the launchpad cannot verify a console step it did not perform. The list follows the answers: the Coolify token until it is set, signing in to Claude Code or installing Node, the tailnet policy entries and OAuth client that `/setup-coolify-devops` hands over as its precondition 3, the DNS token and Coolify's server Wildcard Domain when there is a public lane, and the GitHub App in `github` or `internet` mode. An optional last item covers a separate Hetzner token for coolify-devops, never the launchpad's own.
 
-Three of those items carry what the first real run learned:
+Several of those items carry what the real runs learned:
 
 - The token item gives a command to run in a plain shell on the server, not inside Claude Code: `read -rsp 'Coolify token: ' T && printf "export COOLIFY_ACCESS_TOKEN='%s'\n" "$T" >> /root/.config/coolify-devops.env && unset T; echo`. It asks for the token without showing it, so the token stays out of the shell history. It appends a single-quoted line, because a Coolify token has the form `<id>|<secret>` and the `|` breaks an unquoted `export`. The item also says not to run the `cat >` block from `/setup-coolify-devops`'s precondition 1, which would overwrite the env file the launch wrote.
 - The Claude Code item notes that the box has only root, and `claude -p` refuses `--permission-mode bypassPermissions` as root, so a headless run needs an allow-list. A session signed in with the person's account also loads that account's personal claude.ai connectors on the server.
-- The GitHub App item points at Coolify's manual route, which [Coolify's own page](https://coolify.io/docs/applications/sources/github/app) describes. The first real run made the App this way over the tailnet, with no firewall change. Whether a real push then reaches Coolify is still on the rehearsal's list to confirm. The item says to use this route rather than "Register With GitHub", which sends the browser to `http://<public-ip>:8000`: plain HTTP, and not signed in for someone who uses Coolify over the tailnet.
+- The GitHub App item points at Coolify's manual route, which [Coolify's own page](https://coolify.io/docs/applications/sources/github/app) describes. Both real runs made the App this way over the tailnet, with no firewall change, and in the second a push through the App's webhook reached Coolify and deployed. The item says to use this route rather than "Register With GitHub", which sends the browser to `http://<public-ip>:8000`: plain HTTP, and not signed in for someone who uses Coolify over the tailnet.
+- With a DuckDNS public lane, the DNS item asks only for the DuckDNS token, which coolify-devops's DuckDNS updater uses. DuckDNS already answers every name under the suffix, so there is no wildcard record to make.
+- With any public lane, an item asks the person to set the server's Wildcard Domain in Coolify, under Servers, localhost, General, to `https://<suffix>`. coolify-devops's tools cannot write that setting, so in the second real run the person set it by hand.
 
-The GitHub App comes as two items, the GitHub side and then the Coolify side, with the steps in order. In Coolify: Sources, + Add, a name, Continue, then "Continue manually". At `https://github.com/settings/apps/new`, the App gets a homepage URL (the Coolify URL), the webhook URL `http://<public-ip>:8000/webhooks/source/github/events` and a long random webhook secret. Its permissions are contents read, metadata read, pull requests write and emails read, and its events are push and pull_request. The person generates a client secret and a private key and installs the App on their repositories.
+The GitHub App comes as two items, the GitHub side and then the Coolify side, with the steps in order. In Coolify: Sources, + Add, a name, Continue, then "Continue manually". Then the person opens a link to `https://github.com/settings/apps/new` that fills in GitHub's form, built from the block's own addresses with each value URL-encoded:
+
+```
+https://github.com/settings/apps/new?name=<name>&url=<coolify-url>&webhook_active=true&webhook_url=http://<public-ip>:8000/webhooks/source/github/events&public=false&contents=read&metadata=read&pull_requests=write&emails=read&events[]=push&events[]=pull_request
+```
+
+The second real run made its App from a link with these parameter names, and every field landed. The form then holds the name, a homepage URL (the Coolify URL), the webhook URL, the permissions contents read, metadata read, pull requests write and emails read, and the events push and pull_request. The link leaves the webhook secret out, so the person types a long random one into the form. They then generate a client secret and a private key and install the App on their repositories.
 
 Back in Coolify, the key goes under Keys & Tokens, Private Keys. The person then fills in the App ID, the Installation ID (the number after `/installations/` in the installation's URL), the Client ID, the client secret and the same webhook secret, and selects the key. Coolify refuses every webhook when the secret is empty.
 

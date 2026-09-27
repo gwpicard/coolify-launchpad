@@ -5,7 +5,7 @@ license: MIT
 compatibility: Run from a clone of coolify-launchpad on the operator's own computer, on the same Tailscale tailnet as the server. Read-only; needs network access to the Hetzner API and to the server over the tailnet.
 metadata:
   author: gwpicard
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 # /check-server

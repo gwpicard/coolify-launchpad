@@ -214,6 +214,9 @@ test("a launch in github mode with no public lane runs every step in order and e
         ]);
         const asked = w.events.find((e) => e.status === "started" && e.ask);
         assert.match(asked?.ask ?? "", /Open http:\/\/100\.64\.0\.7:8000 from this computer now/);
+        assert.match(asked?.ask ?? "", /Fill in every field, use a strong password \(upper and lower case letters, a number and a symbol\)/);
+        assert.match(asked?.ask ?? "", /submit the form once/);
+        assert.match(asked?.ask ?? "", /after an HTTP 429, wait two minutes before you try again/);
         const post = w.calls.find((c) => c.method === "POST");
         assert.deepEqual(post?.body, { rules: laneRules(spec, GITHUB_META.hooks) });
         assert.equal(w.written.length, 1);

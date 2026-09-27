@@ -113,8 +113,10 @@ Six questions, each with a default the person can accept in a word.
    prices are checked against `hcloud server-type list` at build time.
 3. Will there be public-facing apps? No is the default. Yes needs a domain the team
    owns, or a DuckDNS one. The launchpad records the suffix and opens 80 and 443.
-   The wildcard record and the DNS pinner are coolify-devops's job. This maps to
-   `domains.public_suffix` in coolify-devops's `instance.yaml`.
+   The wildcard record and the DNS pinner are coolify-devops's job; a DuckDNS
+   name needs no wildcard record, because DuckDNS already answers every name
+   under it. This maps to `domains.public_suffix` in coolify-devops's
+   `instance.yaml`.
 4. Who may reach the Coolify dashboard, asked the way coolify-devops asks it:
    `tailnet` (the team only; releases are manual redeploys), `github` (the tailnet
    plus GitHub's webhook ranges, so a release is a push; the default), or
@@ -217,11 +219,11 @@ The sections, in order:
    decoded into a mode 600 file under `/run` and passed as
    `--auth-key=file:<path>`, so it never appears in the process list; the file is
    removed afterwards, and a `trap` removes it if `tailscale up` fails.
-3. `coolify.sh` runs Coolify's installer with a positional version argument. That
-   the installer accepts one, and that it requires root, are not yet confirmed;
-   the version is pinned once they are. The first real run left
-   `COOLIFY_VERSION` in `program/cloud-init/build.ts` unset, and the installer
-   installed its current release, 4.3.23. The admin account is
+3. `coolify.sh` runs Coolify's installer with the version as its positional
+   argument. `COOLIFY_VERSION` in `program/cloud-init/build.ts` pins it to
+   4.3.23. The second real run passed that argument, and `docker inspect
+   coolify` on the box showed `coollabsio/coolify:4.3.23`. Whether the installer
+   requires root is not confirmed; it runs as root here. The admin account is
    not pre-created with the installer's `ROOT_USER_*` variables, because that
    would put a password in user-data, which any process on the box can read from
    the metadata service. The admin is registered over the tailnet in Phase B, as
@@ -262,7 +264,7 @@ does not collide.
 
 The server carries `ignoreChanges: ["userData"]`. User-data only matters on
 first boot, and a change to it would make Pulumi replace the machine. So a later
-launch after the Coolify version is pinned, or with a new auth key, leaves the
+launch after the Coolify pin moves, or with a new auth key, leaves the
 running server alone. `npm run preview:offline` proves this against a hand-built
 state for a running server: a new key plans nothing, and the same preview on a
 copy of the program without that line plans a replacement.
@@ -330,13 +332,16 @@ Each step is a progress event:
    step carries no ask. Otherwise tell the person to open
    `http://<tailnet-ip>:8000` from this computer now and create the admin
    account, because whoever reaches that page first owns the server, which is
-   why nothing is open to the internet yet. Then turn on two-factor
+   why nothing is open to the internet yet. The ask says to fill every field,
+   use a strong password and submit once, because Coolify 4.3.23 accepts about
+   five submits of that form a minute from one address and answers HTTP 429
+   after that. Then turn on two-factor
    authentication, which should be under Settings, General; no real run has
    confirmed that place yet. Poll
    `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/register`
    without `-L` until it stops answering 200. Coolify closes registration after
    the first user, and any real status other than 200 counts as closed; a 000,
-   which means no answer, does not. The first real run saw 302 once the account
+   which means no answer, does not. Both real runs saw 302 once the account
    existed.
 
    The wait lasts 20 minutes. If it runs out, the launch stops and names
