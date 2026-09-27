@@ -231,13 +231,17 @@ export function registrationClosed(code: string): boolean {
 /**
  * What the person is asked to do while step 4 waits. Coolify 4.3.23 accepts
  * about five submits of the register form a minute from one address, failed
- * ones included; the second real run hit its HTTP 429.
+ * ones included, by its RouteServiceProvider; the second real run hit its
+ * HTTP 429. Its production password rule (AppServiceProvider) is at least 8
+ * characters, upper and lower case letters, a number, a symbol, and not found
+ * in a known data breach.
  */
 export function adminInstruction(tailnetIp: string): string {
     return (
         `Open http://${tailnetIp}:8000 from this computer now and create the Coolify admin account. ` +
         `Whoever reaches that page first owns the server, which is why nothing is open to the internet yet. ` +
-        `Fill in every field, use a strong password (upper and lower case letters, a number and a symbol), and ` +
+        `Fill in every field, use a strong password (at least 8 characters, with upper and lower case letters, ` +
+        `a number and a symbol, and not one found in a known data breach), and ` +
         `submit the form once. Coolify accepts about five submits a minute from one address; after an HTTP 429, ` +
         `wait two minutes before you try again. ` +
         `Then turn on two-factor authentication. It should be under Settings, General, but no real launch has confirmed that place yet.`

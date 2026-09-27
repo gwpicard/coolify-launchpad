@@ -110,10 +110,10 @@ test("a public lane adds the DNS item and the Wildcard Domain item, worded for D
     for (const items of [own, duck]) {
         const wild = items.find((s) => /Wildcard Domain/.test(s));
         assert.ok(wild, "no Wildcard Domain item for a public lane");
-        assert.match(wild, /Servers, localhost, General/);
+        assert.match(wild, /should be under Servers, localhost, General/);
         assert.match(wild, /cannot write it/);
     }
-    assert.match(duck.find((s) => /Wildcard Domain/.test(s)) ?? "", /to https:\/\/team-x\.duckdns\.org,/);
+    assert.match(duck.find((s) => /Wildcard Domain/.test(s)) ?? "", /to https:\/\/team-x\.duckdns\.org\. It should be/);
     assert.ok(!stillYoursToDo(facts).some((s) => /Wildcard Domain|precondition 4/.test(s)), "no public lane, yet a lane item");
     assert.ok(isDuckDns("duckdns.org") && isDuckDns("a.duckdns.org"));
     assert.ok(!isDuckDns("notduckdns.org") && !isDuckDns("duckdns.org.example.com"));
@@ -148,6 +148,7 @@ test("the GitHub App item points at Coolify's manual route and never at opening 
         const link = githubAppLink("alpha", "http://100.64.0.7:8000", "203.0.113.10");
         assert.ok(item.includes(` ${link} `), `the pre-filled link is missing: ${item}`);
         assert.match(item, /Type a long random webhook secret into the form yourself; the link leaves it out/);
+        assert.match(item, /App names are unique across GitHub, so change it if GitHub says it is taken/);
         assert.ok(item.includes("http://203.0.113.10:8000/webhooks/source/github/events"), item);
         assert.match(item, /contents read, metadata read, pull requests write and emails read/);
         assert.match(item, /events push and pull_request/);
@@ -235,6 +236,8 @@ test("the list notes that claude -p will not bypass permissions as root, and tha
         assert.match(item, /as root/);
         assert.match(item, /allow-list/);
         assert.match(item, /personal claude\.ai connectors/);
+        assert.match(item, /Start claude from an interactive shell/);
+        assert.match(item, /bash -lc, claude -p or cron does not see the token/);
     }
 });
 

@@ -142,7 +142,8 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
     const claudeNotes =
         " Claude Code there runs as root, the only user. claude -p refuses --permission-mode bypassPermissions " +
         "as root, so a headless run needs an allow-list (--allowedTools). A session signed in with your account " +
-        "also loads that account's personal claude.ai connectors on the server.";
+        "also loads that account's personal claude.ai connectors on the server. Start claude from an interactive " +
+        "shell, as here: a session started with bash -lc, claude -p or cron does not see the token in the env file.";
     if (spec.install_tooling) {
         items.push(`Sign in to Claude Code on the server: ssh root@${f.tailnetIp}, then claude.${claudeNotes}`);
     } else {
@@ -166,7 +167,7 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
         );
         items.push(
             `In Coolify at http://${f.tailnetIp}:8000, set the server's Wildcard Domain to ` +
-            `https://${spec.public_lane}, under Servers, localhost, General. The public lane needs it, and ` +
+            `https://${spec.public_lane}. It should be under Servers, localhost, General. The public lane needs it, and ` +
             `coolify-devops's tools cannot write it, so it is done by hand.`,
         );
     }
@@ -180,7 +181,8 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
             `http://${f.publicIp}:8000: plain HTTP, and not signed in if you use Coolify over the tailnet. ` +
             `Then open this link, which fills in GitHub's form for a new App at https://github.com/settings/apps/new: ` +
             `${githubAppLink(spec.name, `http://${f.tailnetIp}:8000`, f.publicIp)} ` +
-            `It sets the name (change it if you like), the homepage URL (the Coolify URL, http://${f.tailnetIp}:8000), ` +
+            `It sets the name. App names are unique across GitHub, so change it if GitHub says it is taken. It also sets ` +
+            `the homepage URL (the Coolify URL, http://${f.tailnetIp}:8000), ` +
             `the webhook URL ${githubWebhookUrl(f.publicIp)}, the permissions contents read, metadata read, pull ` +
             `requests write and emails read, and the events push and pull_request. Type a long random webhook ` +
             `secret into the form yourself; the link leaves it out. Generate a client secret and a private key, and ` +
