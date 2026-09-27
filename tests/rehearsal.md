@@ -28,9 +28,9 @@ checked on every run, because the services behind them change without notice.
 
 - Coolify's registration page stops answering 200 at `/register` once the first
   user exists, so Phase B can wait on it without asking the person.
-- Coolify's installer accepts a positional version argument and requires root.
-  Once it does, `COOLIFY_VERSION` in `program/cloud-init/build.ts` is set to the
-  version that run installed.
+- Coolify's installer takes `COOLIFY_VERSION` from `program/cloud-init/build.ts`
+  as its positional argument, and `docker inspect coolify` on the box shows that
+  version. Whether the installer requires root is still open.
 - The Hetzner server type names and prices the interview offers still exist in the
   chosen location: `cpx32`, the default, and `cpx22`, the smaller size a
   rehearsal uses. Record the price each showed.
@@ -89,6 +89,9 @@ checked on every run, because the services behind them change without notice.
   until the probe learns it. A probe from a machine without IPv6 would read every
   port closed and prove nothing, which is why it is not automatic yet.
 - No token value appears anywhere in either session's transcript.
+- The GitHub App link in the server block fills in every field of GitHub's form
+  for a new App, and the App made from it delivers push webhooks to Coolify with
+  the webhook secret set.
 
 ## Shown without a server
 
@@ -238,27 +241,8 @@ Each row is a fact from the list above, in its order.
 In the consoles, the three tailnet policy entries from the preflight reference
 saved as written and were all there after a reload.
 
-### Still to confirm
-
-The next rehearsal has to cover what this one did not:
-
-- the installer's version argument, and then the pin;
-- `cpx32` in `nbg1`, and the price of each size;
-- the key file gone from `/run`, and the log free of lock and IPv6 waits;
-- a failed first phase stopping early;
-- which MagicDNS field a real node gives;
-- a real push through GitHub's hook ranges reaching Coolify;
-- a push webhook delivered with the webhook secret set;
-- the manual GitHub App route in `internet` mode;
-- `npx skills add gwpicard/coolify-launchpad` not offering the humanizer;
-- a `--resume` after 22 has closed, leaving the env file untouched;
-- the probe reading 8080 closed on a real server;
-- the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
-- where Coolify keeps two-factor authentication (the ask says Settings, General);
-- a resume after the account exists going on with no ask;
-- `internet` mode and the public lane, which no run has tried;
-- the Tailscale console removal step, done and seen to work;
-- a launch started by typing `/launch-server` itself.
+What this run left open is listed under the second run, less what that run
+proved.
 
 ### Notes for the operator
 
@@ -285,6 +269,145 @@ Folded into this release: the announcement in `/launch-server` now says the ask
 comes about three minutes in, and `/retire-server` shows the exact name to type. The
 repeated ask, the GitHub App advice and the 8080 gap are left for the next
 version.
+
+## The second real run, 2026-09-26 and 27
+
+One `cpx32` server in `nbg1` on Hetzner, dashboard exposure `github`, a public
+lane on a DuckDNS name, the server-side tooling installed. The launchpad was
+`main` after 0.1.0, stamped 0.1.0, with `COOLIFY_VERSION` set to 4.3.23 in the
+working copy for this run; it became 0.1.1. The person typed `/launch-server`
+and answered the interview. On the server, the person drove
+`/setup-coolify-devops`, with coolify-devops as the launch installed it, through
+to its canary and its `/health` sweep. Coolify 4.3.23 was installed.
+
+The launch missed the admin ask again. It came with a push notification, the
+person did not see it, and the 20-minute wait ran out. Coolify's register form
+then answered HTTP 429 after repeated submits. Once the account existed, a
+resume without `--admin-created` read `/register` as 302, made no ask, and ran
+to the block.
+
+After the block, the person pointed the DuckDNS name at the server and appended
+the Coolify token line. A second resume, with 22 closed, ran all 17 steps and
+left the env file as it was. Then `/check-server` read every row as ok.
+
+Past the launchpad's part, the person made the GitHub App from a pre-filled
+link and finished it by Coolify's manual route, and coolify-devops's `/host`
+put a small app on the public lane over HTTPS. A test pull request got its own
+preview address, and merging it deployed the merge commit through the App's
+webhook. The person ran `/retire-server`, then removed everything else made
+online for the run.
+
+### Timings
+
+| Stage | Time |
+|---|---|
+| The resume after the account existed: the env file | 0.3 s |
+| The same resume: the skills install | 3.9 s |
+| The same resume: the lane firewall | 4.4 s |
+| The same resume: the probe | 3 s |
+| The resume after 22 closed: the env file, left untouched | 0.3 s |
+| A merge on GitHub to the new commit answering on the public lane | 39 s |
+
+### What it confirmed
+
+Each row is a fact from the list above, in its order.
+
+| Fact | Result | What the run showed |
+|---|---|---|
+| Registration page | Held | Before the account, `/register` answered 200 and `/login` sent the browser to `/register`. After it, `/register` answered 302 to `/login`, and the resume made no ask. |
+| Installer version argument | Held | The installer took 4.3.23 as its first argument, and `docker inspect coolify` showed `coollabsio/coolify:4.3.23`. The pin is now in the code. The installer ran as root, which does not show whether it requires root. |
+| Server type and price | Partly | `cpx32` exists in `nbg1` and launched. No price is recorded here. |
+| Auth key from a file | Partly | The node joined the tailnet tagged `tag:server`. Nobody checked that the key file was gone from `/run`. |
+| apt lock and IPv4 | Not recorded | The first phase finished. Nothing about its log was recorded. |
+| A failed first phase | Not tried | Nothing in the first phase failed. |
+| Coolify on 8000 | Held | `localhost:8000` answered, and the block's Coolify line reads `localhost`. |
+| The tailnet node | Partly | `/check-server` read `tag:server`, key expiry disabled and Tailscale SSH on. Which MagicDNS field the node gave was not recorded. |
+| GitHub's hook ranges | Held | Six ranges were read, and the rule read back equal to them: "TCP 8000 from 6 source(s)". A push and a pull request webhook reached Coolify through them with the webhook secret set. Coolify showed the source as Connected. |
+| `npx -y skills add` over SSH | Held | Completed in 3.9 s with no terminal. |
+| The SSH grant | Held | Proved in 0.3 s, with `group:server-admins` as the source of the `ssh` rule. |
+| The humanizer's placement | Not tried | |
+| `/setup-coolify-devops` step 2 | Not recorded | Setup ran through to its `/health` sweep. Whether step 2 noted a gap for the firewall or the env file was not written down. |
+| A resume after 22 is closed | Held | With the token line appended, the env file was "already there, left untouched (mode 600)". Its mode, size, line count and hash were the same afterwards. |
+| Finding the node by name | Held | Both resumes chose the tailnet and reached the server at its tailnet address. |
+| `set_rules` and its read-back | Held | "TCP 80 from 2 source(s); TCP 443 from 2 source(s); TCP 8000 from 6 source(s)". |
+| The probe | Held | 80 and 443 read open for the public lane; 22, 3000, 8000, 6001, 6002 and 8080 read closed. Coolify answered over the tailnet with HTTP 302. |
+| Node and Claude Code | Held | `node --version` read v22.23.3, and Claude Code was present. |
+| `/root` left clean | Held | The launch's check of `/root` passed, and coolify-devops committed its deployment repository in `/root`. |
+| `/setup-coolify-devops` step 1 | Partly | It found the host by itself and asked for the lane first, without asking for the block. The person's answers were the block's: the DuckDNS lane and `github`. |
+| `/check-server` | Held | 14 rows, all ok, the token read as set by presence only, and nothing changed. |
+| The retire | Partly | Run by the person. Read afterwards, the Hetzner project held no servers, firewalls, SSH keys, primary IPs, volumes, load balancers or networks, and the public IP read closed on 22, 80, 443 and 8000. The spec and block files were gone. The Tailscale console still listed the machine, offline, and the person removed it. A wrong typed name was not recorded. |
+| The node's identity | Held | The public IP and the server id matched the stack. |
+| The probe over IPv6 | Not tried | |
+| No token in a transcript | Partly | The launch, resume and check logs held no secret when searched. Nothing was recorded for the server sessions. |
+| The GitHub App link | Held | A link with the parameter names the block now uses filled in every field: the name, the homepage, the webhook URL and its active box, contents and metadata read, pull requests write, emails read, and the push and pull_request events. The person typed the webhook secret. The block did not print the link in this run; it was put together by hand. |
+
+In the consoles, the tailnet policy saved from the preflight reference held.
+The person pasted and saved it, because the harness refused an agent's write to
+the policy editor as an access change.
+
+### What it found
+
+- `/launch-server` walked all five console steps though `.env.<name>` already
+  had all three keys set, and the person had to say they were done. The skill
+  now runs the preflight first and offers to skip to the machine checks.
+- A push notification went out with the admin ask, and the person still missed
+  it. The skill keeps the notification and now repeats the ask when the person
+  next writes.
+- Coolify's register form answered HTTP 429. Coolify 4.3.23 accepts about five
+  submits a minute from one address, failed ones included. The ask now says to
+  fill every field, use a strong password, submit once, and wait two minutes
+  after a 429.
+- The block's Next line said a new session resumes once the token is in the env
+  file, while the Env file line said the token was set. The Next line now
+  follows the token.
+- For the DuckDNS lane, the block asked for a wildcard record. DuckDNS answers
+  every name under the suffix already, so only the token is needed. The block
+  now says so for a DuckDNS lane.
+- Coolify's server Wildcard Domain was not set, and coolify-devops's tools
+  cannot write it. The person set it by hand. The block now lists it for every
+  public lane.
+- The pre-filled GitHub App link worked. The block now prints it, built from its
+  own addresses.
+- The first Claude Code session on the server had no `COOLIFY_ACCESS_TOKEN`. It
+  was started with `bash -lc claude`, and Ubuntu's `.bashrc` returns early for a
+  shell that is not interactive, before the launch's source line. A session
+  started from an interactive shell had the token. Moving the source line is
+  not proved on a real server, so this release leaves it where it is.
+
+### Still to confirm
+
+The next rehearsal has to cover what the two runs did not:
+
+- whether the installer requires root;
+- the price of each size;
+- the key file gone from `/run`, and the log free of lock and IPv6 waits;
+- a failed first phase stopping early;
+- which MagicDNS field a real node gives;
+- `/setup-coolify-devops` step 2 with no gap for the firewall or the env file;
+- the manual GitHub App route in `internet` mode;
+- the GitHub App link as the block prints it;
+- `npx skills add gwpicard/coolify-launchpad` not offering the humanizer;
+- the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
+- where Coolify keeps two-factor authentication (the ask says Settings, General);
+- `internet` mode, which no run has tried;
+- the retire refusing a wrong typed name on a second run;
+- the env file's `.bashrc` line reaching a non-interactive shell;
+- no token in the transcript of a session on the server.
+
+### Notes for the operator
+
+- On an HTTP 429 from Coolify's register form, wait two minutes, then submit
+  once, with every field filled.
+- In this run a notification alone did not bring the person back for the admin
+  ask. Stay at the screen from about three minutes in.
+- Start Claude Code on the server from an interactive shell, as
+  `ssh root@<tailnet-ip>` and then `claude`, until the non-interactive case is
+  settled.
+
+Folded into this release: the Coolify pin, the preflight-first check in
+`/launch-server`, the repeated ask and the 429 advice, and the block's Next
+line, DuckDNS wording, Wildcard Domain item and GitHub App link. The `.bashrc`
+source line is left for a later version.
 
 ## Taking a server down by hand
 
@@ -319,3 +442,4 @@ A full run costs a few cents of Hetzner time for a server that lives under an ho
 | Date | Launchpad | coolify-devops | Coolify observed | Facts held | What failed | Folded into |
 |---|---|---|---|---|---|---|
 | 2026-09-25 | 0.0.0, released as 0.1.0 | 0.4.0 | 4.3.23 | 13 held, 6 partly, 5 not confirmed or not tried, 1 did not hold; see the first real run above | The missed admin ask timed out the first pass, and a coolify-devops session put the Coolify token in its own transcript | The announcement in `/launch-server`; the typed name in `/retire-server` |
+| 2026-09-26 and 27 | `main` after 0.1.0 with the pin set locally, released as 0.1.1 | as the launch installed it; version not recorded | 4.3.23 | 15 held, 6 partly, 5 not tried or not recorded; see the second real run above | The missed admin ask timed out the first pass again; the register form answered HTTP 429; a session on the server started from a non-interactive shell had no token | `/launch-server`, the admin ask, the server block, `docs/server-model.md`; the `.bashrc` line is left open |
