@@ -5,6 +5,50 @@ One entry per version in `package.json`. The public repository carries a
 version is never re-released with different skill content; `tools/validate.sh`
 refuses a version that does not match every skill.
 
+## 0.1.1, 2026-09-27
+
+A release after the second real run on Hetzner. That run used `github` mode
+with a public lane on a DuckDNS name. The person typed `/launch-server` and
+drove it, and coolify-devops then hosted an app on the public lane, with a
+pull request preview and a push that deployed.
+
+- Every launch now installs Coolify 4.3.23. The run passed that version to
+  Coolify's installer, and the server ran exactly it.
+- If `.env.<name>` already has all three keys, `/launch-server` says so and
+  offers to skip the console steps. It checks only that each key is present.
+- The admin account ask comes once. A resume looks at Coolify's registration
+  page first and makes no ask when the account already exists. The ask also
+  arrives as a desktop notification where the harness can send one. If you
+  miss it, the agent repeats it when you next write.
+- The ask now says to fill in every field, use a strong password and submit
+  the form once. Coolify allows about five submits a minute from one address.
+  After an HTTP 429, wait two minutes before you try again.
+- The server block gives a link that fills in GitHub's form for a new App from
+  the server's own addresses. You type the webhook secret yourself. The App is
+  then finished in Coolify by its manual route, with no firewall change. In the
+  run, a push reached Coolify through the App's webhook with the secret set.
+- The token item in the block gives one command to run on the server. It asks
+  for the Coolify token without showing it and appends it to the env file as a
+  quoted line.
+- The block's Next line now depends on whether the token is already in the env
+  file.
+- With a public lane, the block lists Coolify's server Wildcard Domain, which
+  you set by hand. With a DuckDNS name, it asks only for the DuckDNS token,
+  because DuckDNS needs no wildcard record.
+- The probe also tests port 8080, where Traefik publishes its dashboard, and
+  expects it closed in every lane. The run read it closed.
+- The before-you-launch guide now covers signing up for Hetzner, choosing your
+  tailnet name before HTTPS is on, and installing Claude Code.
+- A stray file in `skills/`, such as the `.DS_Store` a Mac leaves, no longer
+  breaks the version check.
+
+What the run confirmed: a resume after port 22 has closed leaves a filled env
+file exactly as it was, and `/check-server` read every row as ok. Still open:
+`internet` mode, the probe over IPv6, where Coolify keeps two-factor
+authentication, and whether the env file's `.bashrc` line reaches a shell that
+is not interactive. A session on the server started that way had no token.
+`tests/rehearsal.md` lists every fact and what each run showed.
+
 ## 0.1.0, 2026-09-25
 
 The first release. It takes a person from no server to one that
