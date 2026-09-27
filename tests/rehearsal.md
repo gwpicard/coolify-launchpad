@@ -452,7 +452,7 @@ Record the date, the launchpad version being rehearsed, the coolify-devops versi
 installed on the box, the Coolify version the installer produced, whether each of
 the facts above held, what failed, and where the fix landed.
 
-A full run is cheap next to a broken release: the server lives under an hour.
+A full run is cheap next to a broken release: the server lives only for the length of the run, and the retire destroys it.
 
 ## Runs
 
