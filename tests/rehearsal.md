@@ -280,9 +280,11 @@ and answered the interview. On the server, the person drove
 `/setup-coolify-devops`, with coolify-devops as the launch installed it, through
 to its canary and its `/health` sweep. Coolify 4.3.23 was installed.
 
-The launch missed the admin ask again. It came with a push notification, the
-person did not see it, and the 20-minute wait ran out. Coolify's register form
-then answered HTTP 429 after repeated submits. Once the account existed, a
+The launch missed the admin ask again. A push notification was sent with it;
+whether it appeared was not reported. The person did not see the ask, and the
+20-minute wait ran out. Coolify's register form then answered HTTP 429 after
+repeated submits. What cleared the 429 was not recorded. Once the account
+existed, a
 resume without `--admin-created` read `/register` as 302, made no ask, and ran
 to the block.
 
@@ -339,7 +341,7 @@ Each row is a fact from the list above, in its order.
 | The node's identity | Held | The public IP and the server id matched the stack. |
 | The probe over IPv6 | Not tried | |
 | No token in a transcript | Partly | The launch, resume and check logs held no secret when searched. Nothing was recorded for the server sessions. |
-| The GitHub App link | Held | A link with the parameter names the block now uses filled in every field: the name, the homepage, the webhook URL and its active box, contents and metadata read, pull requests write, emails read, and the push and pull_request events. The person typed the webhook secret. The block did not print the link in this run; it was put together by hand. |
+| The GitHub App link | Partly | A link with the parameter names the block now uses filled in every field: the name, the homepage, the webhook URL and its active box, contents and metadata read, pull requests write, emails read, and the push and pull_request events. The person typed the webhook secret. The block did not print the link in this run; it was put together by hand. |
 
 In the consoles, the tailnet policy saved from the preflight reference held.
 The person pasted and saved it, because the harness refused an agent's write to
@@ -350,13 +352,14 @@ the policy editor as an access change.
 - `/launch-server` walked all five console steps though `.env.<name>` already
   had all three keys set, and the person had to say they were done. The skill
   now runs the preflight first and offers to skip to the machine checks.
-- A push notification went out with the admin ask, and the person still missed
-  it. The skill keeps the notification and now repeats the ask when the person
+- A push notification was sent with the admin ask, and the person still missed
+  the ask. Whether the notification appeared was not reported. The skill keeps the notification and now repeats the ask when the person
   next writes.
-- Coolify's register form answered HTTP 429. Coolify 4.3.23 accepts about five
-  submits a minute from one address, failed ones included. The ask now says to
-  fill every field, use a strong password, submit once, and wait two minutes
-  after a 429.
+- Coolify's register form answered HTTP 429. The run did not measure the limit,
+  and what cleared the 429 was not recorded. Coolify 4.3.23's own source
+  (its `RouteServiceProvider`) sets a limit of five a minute from one address,
+  and failed submits count. The ask now says to fill every field, use a strong
+  password, submit once, and wait two minutes after a 429.
 - The block's Next line said a new session resumes once the token is in the env
   file, while the Env file line said the token was set. The Next line now
   follows the token.
@@ -368,11 +371,13 @@ the policy editor as an access change.
   public lane.
 - The pre-filled GitHub App link worked. The block now prints it, built from its
   own addresses.
-- The first Claude Code session on the server had no `COOLIFY_ACCESS_TOKEN`. It
-  was started with `bash -lc claude`, and Ubuntu's `.bashrc` returns early for a
-  shell that is not interactive, before the launch's source line. A session
-  started from an interactive shell had the token. Moving the source line is
-  not proved on a real server, so this release leaves it where it is.
+- A known gap, seen in the run: the first Claude Code session on the server had
+  no `COOLIFY_ACCESS_TOKEN`. It was started with `bash -lc claude`, and Ubuntu's
+  `.bashrc` returns early for a shell that is not interactive, before the
+  launch's source line. A session started from an interactive shell had the
+  token. There is no proven fix yet, so this release leaves the source line
+  where it is. The block's Claude Code item and a troubleshooting row in
+  `docs/server-model.md` now say to start `claude` from an interactive shell.
 
 ### Still to confirm
 
@@ -386,18 +391,25 @@ The next rehearsal has to cover what the two runs did not:
 - `/setup-coolify-devops` step 2 with no gap for the firewall or the env file;
 - the manual GitHub App route in `internet` mode;
 - the GitHub App link as the block prints it;
+- the `/launch-server` offer to skip the console steps when the env file is full;
+- the ask repeated when the person next writes;
+- what clears a register-form 429;
+- where Coolify keeps the server's Wildcard Domain (the block says Servers,
+  localhost, General);
 - `npx skills add gwpicard/coolify-launchpad` not offering the humanizer;
 - the probe over IPv6, by hand from a machine with IPv6 off the tailnet;
 - where Coolify keeps two-factor authentication (the ask says Settings, General);
 - `internet` mode, which no run has tried;
 - the retire refusing a wrong typed name on a second run;
-- the env file's `.bashrc` line reaching a non-interactive shell;
+- the env file's `.bashrc` line reaching a non-interactive shell, and a fix that
+  lets a non-interactive shell see the token;
 - no token in the transcript of a session on the server.
 
 ### Notes for the operator
 
 - On an HTTP 429 from Coolify's register form, wait two minutes, then submit
-  once, with every field filled.
+  once, with every field filled. The two minutes come from Coolify's source,
+  not from this run, which did not record what cleared its 429.
 - In this run a notification alone did not bring the person back for the admin
   ask. Stay at the screen from about three minutes in.
 - Start Claude Code on the server from an interactive shell, as
@@ -408,6 +420,11 @@ Folded into this release: the Coolify pin, the preflight-first check in
 `/launch-server`, the repeated ask and the 429 advice, and the block's Next
 line, DuckDNS wording, Wildcard Domain item and GitHub App link. The `.bashrc`
 source line is left for a later version.
+
+None of those skill and block changes was in the run itself. The run also had
+a public lane and did not start from a clean clone, so it differs from the
+rehearsal this file describes. Release 0.1.1 ships on a partial rehearsal, as
+0.1.0 did.
 
 ## Taking a server down by hand
 
@@ -435,11 +452,11 @@ Record the date, the launchpad version being rehearsed, the coolify-devops versi
 installed on the box, the Coolify version the installer produced, whether each of
 the facts above held, what failed, and where the fix landed.
 
-A full run costs a few cents of Hetzner time for a server that lives under an hour.
+A full run is cheap next to a broken release: the server lives under an hour.
 
 ## Runs
 
 | Date | Launchpad | coolify-devops | Coolify observed | Facts held | What failed | Folded into |
 |---|---|---|---|---|---|---|
 | 2026-09-25 | 0.0.0, released as 0.1.0 | 0.4.0 | 4.3.23 | 13 held, 6 partly, 5 not confirmed or not tried, 1 did not hold; see the first real run above | The missed admin ask timed out the first pass, and a coolify-devops session put the Coolify token in its own transcript | The announcement in `/launch-server`; the typed name in `/retire-server` |
-| 2026-09-26 and 27 | `main` after 0.1.0 with the pin set locally, released as 0.1.1 | as the launch installed it; version not recorded | 4.3.23 | 15 held, 6 partly, 5 not tried or not recorded; see the second real run above | The missed admin ask timed out the first pass again; the register form answered HTTP 429; a session on the server started from a non-interactive shell had no token | `/launch-server`, the admin ask, the server block, `docs/server-model.md`; the `.bashrc` line is left open |
+| 2026-09-26 and 27 | `main` after 0.1.0 with the pin set locally, released as 0.1.1 | as the launch installed it; version not recorded | 4.3.23 | 14 held, 7 partly, 5 not tried or not recorded; see the second real run above | The missed admin ask timed out the first pass again; the register form answered HTTP 429; a session on the server started from a non-interactive shell had no token | `/launch-server`, the admin ask, the server block, `docs/server-model.md`; the `.bashrc` line is left open. 0.1.1's skill and block changes were not in the run, which had a public lane and did not start from a clean clone |

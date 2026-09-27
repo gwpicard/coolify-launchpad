@@ -85,12 +85,15 @@ template.
 
 First look for work already done. If `.env.<name>` exists, run the preflight
 command below before any console step. It checks presence only and names keys,
-never values. When it says all three keys are set, tell the person, and offer to
+never values. In the second real run the file was already full and the person
+was still walked through all five steps.
+
+When the preflight says all three keys are set, tell the person, and offer to
 skip the console steps and go straight to the machine checks and the two
-confirmations. In the second real run the file was already full and the person
-was still walked through all five steps. Each launch needs a new auth key, so
-ask whether the key in the file is new before you skip. If a key is missing,
-or the person would rather go through the steps, walk them as below.
+confirmations. Each launch needs a new auth key, so before you skip, ask whether
+the key in the file has not been used by any earlier launch and has not
+expired. If a key is missing, or the person would rather go through the steps,
+walk them as below.
 
 Walk the person through [references/preflight.md](references/preflight.md) in
 its order: the Hetzner project and token, Tailscale on this computer, the tailnet
@@ -167,8 +170,9 @@ browser now. Tell them in the chat as well, at once, using the address in the
 1. Open `http://<tailnet-ip>:8000` in a browser on this computer, now.
 2. Create the Coolify admin account there. Whoever reaches that page first owns
    the server, which is why nothing is open to the internet yet.
-3. Fill in every field, use a strong password (upper and lower case letters, a
-   number and a symbol), and submit the form once. Coolify accepts about five
+3. Fill in every field, use a strong password (at least 8 characters, with
+   upper and lower case letters, a number and a symbol, and not one found in a
+   known data breach), and submit the form once. Coolify accepts about five
    submits a minute from one address, failed ones included. If the page answers
    HTTP 429, wait two minutes before one more careful submit.
 4. Turn on two-factor authentication for that account, where the `ask` text

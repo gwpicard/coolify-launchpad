@@ -20,8 +20,8 @@ pull request preview and a push that deployed.
   page first and makes no ask when the account already exists. The ask also
   arrives as a desktop notification where the harness can send one. If you
   miss it, the agent repeats it when you next write.
-- The ask now says to fill in every field, use a strong password and submit
-  the form once. Coolify allows about five submits a minute from one address.
+- The ask now says to fill in every field, use a strong password (at least 8
+  characters, mixed case, a number and a symbol) and submit the form once. Coolify allows about five submits a minute from one address.
   After an HTTP 429, wait two minutes before you try again.
 - The server block gives a link that fills in GitHub's form for a new App from
   the server's own addresses. You type the webhook secret yourself. The App is
@@ -42,12 +42,21 @@ pull request preview and a push that deployed.
 - A stray file in `skills/`, such as the `.DS_Store` a Mac leaves, no longer
   breaks the version check.
 
+- The block's Claude Code item says to start `claude` from an interactive
+  shell. A known gap, seen in the run: a session started with `bash -lc` had no
+  token, because Ubuntu's `.bashrc` stops before the env file's line for a shell
+  that is not interactive. There is no proven fix yet.
+- For maintainers: a commit-msg hook in `.githooks/` takes AI attribution lines
+  out of commit messages, and `tools/validate.sh` refuses a tracked file that
+  carries one.
+
 What the run confirmed: a resume after port 22 has closed leaves a filled env
-file exactly as it was, and `/check-server` read every row as ok. Still open:
-`internet` mode, the probe over IPv6, where Coolify keeps two-factor
-authentication, and whether the env file's `.bashrc` line reaches a shell that
-is not interactive. A session on the server started that way had no token.
-`tests/rehearsal.md` lists every fact and what each run showed.
+file exactly as it was, and `/check-server` read every row as ok. None of this
+release's skill and block changes was in the run, so 0.1.1 ships on a partial
+rehearsal. Still open: `internet` mode, the probe over IPv6, where Coolify
+keeps two-factor authentication, and a fix that lets a shell that is not
+interactive see the token. `tests/rehearsal.md` lists every fact and what each
+run showed.
 
 ## 0.1.0, 2026-09-25
 
