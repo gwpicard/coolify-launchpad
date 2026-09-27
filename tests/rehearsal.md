@@ -266,9 +266,9 @@ proved.
   load on the server too.
 
 Folded into this release: the announcement in `/launch-server` now says the ask
-comes about three minutes in, and `/retire-server` shows the exact name to type. The
-repeated ask, the GitHub App advice and the 8080 gap are left for the next
-version.
+comes about three minutes in, and `/retire-server` shows the exact name to
+type. The repeated ask, the GitHub App advice and the 8080 gap are left for
+the next version.
 
 ## The second real run, 2026-09-26 and 27
 
@@ -282,11 +282,10 @@ to its canary and its `/health` sweep. Coolify 4.3.23 was installed.
 
 The launch missed the admin ask again. A push notification was sent with it;
 whether it appeared was not reported. The person did not see the ask, and the
-20-minute wait ran out. Coolify's register form then answered HTTP 429 after
-repeated submits. What cleared the 429 was not recorded. Once the account
-existed, a
-resume without `--admin-created` read `/register` as 302, made no ask, and ran
-to the block.
+20-minute wait ran out. The person then got an HTTP 429 on submitting Coolify's
+register form. Its cause was not observed, and what cleared it was not
+recorded. Once the account existed, a resume without `--admin-created` read
+`/register` as 302, made no ask, and ran to the block.
 
 After the block, the person pointed the DuckDNS name at the server and appended
 the Coolify token line. A second resume, with 22 closed, ran all 17 steps and
@@ -353,13 +352,14 @@ the policy editor as an access change.
   had all three keys set, and the person had to say they were done. The skill
   now runs the preflight first and offers to skip to the machine checks.
 - A push notification was sent with the admin ask, and the person still missed
-  the ask. Whether the notification appeared was not reported. The skill keeps the notification and now repeats the ask when the person
-  next writes.
-- Coolify's register form answered HTTP 429. The run did not measure the limit,
-  and what cleared the 429 was not recorded. Coolify 4.3.23's own source
-  (its `RouteServiceProvider`) sets a limit of five a minute from one address,
-  and failed submits count. The ask now says to fill every field, use a strong
-  password, submit once, and wait two minutes after a 429.
+  the ask. Whether the notification appeared was not reported. The skill keeps
+  the notification and now repeats the ask when the person next writes.
+- The person got an HTTP 429 on submitting Coolify's register form. The run did
+  not observe its cause or record what cleared it. Coolify 4.3.23's
+  `app/Actions/Fortify/CreateNewUser.php` allows three register submits from one
+  address in ten minutes, and three for one email address in an hour, counted
+  before validation, so failed submits count. The ask now says to fill every
+  field, use a strong password, submit once, and wait ten minutes after a 429.
 - The block's Next line said a new session resumes once the token is in the env
   file, while the Env file line said the token was set. The Next line now
   follows the token.
@@ -401,15 +401,15 @@ The next rehearsal has to cover what the two runs did not:
 - where Coolify keeps two-factor authentication (the ask says Settings, General);
 - `internet` mode, which no run has tried;
 - the retire refusing a wrong typed name on a second run;
-- the env file's `.bashrc` line reaching a non-interactive shell, and a fix that
-  lets a non-interactive shell see the token;
+- a fix that lets a non-interactive shell see the token;
 - no token in the transcript of a session on the server.
 
 ### Notes for the operator
 
-- On an HTTP 429 from Coolify's register form, wait two minutes, then submit
-  once, with every field filled. The two minutes come from Coolify's source,
-  not from this run, which did not record what cleared its 429.
+- On an HTTP 429 from Coolify's register form, wait ten minutes, then submit
+  once, with every field filled. The ten minutes come from Coolify's source.
+  During the run the operator's advice was two minutes, and what cleared the
+  429 was not recorded.
 - In this run a notification alone did not bring the person back for the admin
   ask. Stay at the screen from about three minutes in.
 - Start Claude Code on the server from an interactive shell, as

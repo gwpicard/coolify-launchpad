@@ -333,11 +333,11 @@ Each step is a progress event:
    `http://<tailnet-ip>:8000` from this computer now and create the admin
    account, because whoever reaches that page first owns the server, which is
    why nothing is open to the internet yet. The ask says to fill every field,
-   use a strong password and submit once, because Coolify 4.3.23 accepts about
-   five submits of that form a minute from one address and answers HTTP 429
-   after that. Then turn on two-factor
-   authentication, which should be under Settings, General; no real run has
-   confirmed that place yet. Poll
+   use a strong password and submit once. Coolify 4.3.23 allows three register
+   submits from one address in ten minutes, and three for one email address in
+   an hour, failed ones included, and answers HTTP 429 past that. Then turn on
+   two-factor authentication, which should be under Settings, General; no real
+   run has confirmed that place yet. Poll
    `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/register`
    without `-L` until it stops answering 200. Coolify closes registration after
    the first user, and any real status other than 200 counts as closed; a 000,

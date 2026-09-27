@@ -237,7 +237,7 @@ test("the list notes that claude -p will not bypass permissions as root, and tha
         assert.match(item, /allow-list/);
         assert.match(item, /personal claude\.ai connectors/);
         assert.match(item, /Start claude from an interactive shell/);
-        assert.match(item, /bash -lc, claude -p or cron does not see the token/);
+        assert.match(item, /a shell that is not interactive, such as bash -lc, ssh host 'command' or cron, does not see the token/);
     }
 });
 

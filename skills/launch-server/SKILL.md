@@ -172,9 +172,10 @@ browser now. Tell them in the chat as well, at once, using the address in the
    the server, which is why nothing is open to the internet yet.
 3. Fill in every field, use a strong password (at least 8 characters, with
    upper and lower case letters, a number and a symbol, and not one found in a
-   known data breach), and submit the form once. Coolify accepts about five
-   submits a minute from one address, failed ones included. If the page answers
-   HTTP 429, wait two minutes before one more careful submit.
+   known data breach), and submit the form once. Coolify 4.3.23 allows three
+   register submits from one address in ten minutes, and three for one email
+   address in an hour, failed ones included. After an HTTP 429, wait ten
+   minutes before one more careful submit.
 4. Turn on two-factor authentication for that account, where the `ask` text
    says. No real launch has confirmed that place yet, so if the setting is not
    there, ask the person to look through Coolify's settings for it.

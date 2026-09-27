@@ -21,8 +21,10 @@ pull request preview and a push that deployed.
   arrives as a desktop notification where the harness can send one. If you
   miss it, the agent repeats it when you next write.
 - The ask now says to fill in every field, use a strong password (at least 8
-  characters, mixed case, a number and a symbol) and submit the form once. Coolify allows about five submits a minute from one address.
-  After an HTTP 429, wait two minutes before you try again.
+  characters, mixed case, a number and a symbol) and submit the form once.
+  Coolify 4.3.23 allows three register submits from one address in ten
+  minutes, and three for one email address in an hour, failed ones included.
+  After an HTTP 429, wait ten minutes before one more careful submit.
 - The server block gives a link that fills in GitHub's form for a new App from
   the server's own addresses. You type the webhook secret yourself. The App is
   then finished in Coolify by its manual route, with no firewall change. In the

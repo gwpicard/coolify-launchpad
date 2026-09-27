@@ -229,10 +229,11 @@ export function registrationClosed(code: string): boolean {
 }
 
 /**
- * What the person is asked to do while step 4 waits. Coolify 4.3.23 accepts
- * about five submits of the register form a minute from one address, failed
- * ones included, by its RouteServiceProvider; the second real run hit its
- * HTTP 429. Its production password rule (AppServiceProvider) is at least 8
+ * What the person is asked to do while step 4 waits. Coolify 4.3.23 limits
+ * the register form in app/Actions/Fortify/CreateNewUser.php: three submits
+ * from one address in ten minutes, and three for one email address in an
+ * hour, counted before validation, so failed submits count; past that it
+ * answers HTTP 429. The second real run got that 429. Its production password rule (AppServiceProvider) is at least 8
  * characters, upper and lower case letters, a number, a symbol, and not found
  * in a known data breach.
  */
@@ -242,8 +243,9 @@ export function adminInstruction(tailnetIp: string): string {
         `Whoever reaches that page first owns the server, which is why nothing is open to the internet yet. ` +
         `Fill in every field, use a strong password (at least 8 characters, with upper and lower case letters, ` +
         `a number and a symbol, and not one found in a known data breach), and ` +
-        `submit the form once. Coolify accepts about five submits a minute from one address; after an HTTP 429, ` +
-        `wait two minutes before you try again. ` +
+        `submit the form once. Coolify 4.3.23 allows three register submits from one address in ten minutes, ` +
+        `and three for one email address in an hour, failed ones included. After an HTTP 429, wait ten minutes ` +
+        `before one more careful submit. ` +
         `Then turn on two-factor authentication. It should be under Settings, General, but no real launch has confirmed that place yet.`
     );
 }

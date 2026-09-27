@@ -143,7 +143,8 @@ export function stillYoursToDo(f: ServerBlockFacts): string[] {
         " Claude Code there runs as root, the only user. claude -p refuses --permission-mode bypassPermissions " +
         "as root, so a headless run needs an allow-list (--allowedTools). A session signed in with your account " +
         "also loads that account's personal claude.ai connectors on the server. Start claude from an interactive " +
-        "shell, as here: a session started with bash -lc, claude -p or cron does not see the token in the env file.";
+        "shell, as here: a session started from a shell that is not interactive, such as bash -lc, " +
+        "ssh host 'command' or cron, does not see the token in the env file.";
     if (spec.install_tooling) {
         items.push(`Sign in to Claude Code on the server: ssh root@${f.tailnetIp}, then claude.${claudeNotes}`);
     } else {
