@@ -2,15 +2,14 @@ import { readFileSync } from "node:fs";
 import { b64 } from "../../lib/secrets.js";
 
 /**
- * The Coolify version passed to the installer as its positional argument.
+ * The Coolify version passed to the installer as its positional argument, so
+ * every launch installs exactly this version.
  *
- * Left unset until a real run has confirmed that the installer takes a
- * version this way (tests/rehearsal.md lists it). The first real run left it
- * unset and got 4.3.23. Unset, the installer installs its current release.
- * Set it to a version string such as the one that run observed, and every
- * later launch installs exactly that.
+ * The second real run passed it this way, and `docker inspect coolify` on the
+ * box showed coollabsio/coolify:4.3.23 (tests/rehearsal.md records it). Move it
+ * to a newer version only after a real run on that version.
  */
-export const COOLIFY_VERSION: string | undefined = undefined;
+export const COOLIFY_VERSION: string = "4.3.23";
 
 const snippetsDir = new URL("./snippets/", import.meta.url);
 

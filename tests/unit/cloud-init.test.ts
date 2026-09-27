@@ -3,7 +3,7 @@
 // encoded. The key below is a made-up marker, not a credential.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildUserData, substitute, sectionsFor } from "../../program/cloud-init/build.js";
+import { buildUserData, COOLIFY_VERSION, substitute, sectionsFor } from "../../program/cloud-init/build.js";
 import { b64 } from "../../lib/secrets.js";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -94,9 +94,10 @@ test("no admin account is pre-created in user-data", () => {
     assert.ok(!/ROOT_USER|ROOT_USERNAME|ROOT_USER_PASSWORD/.test(script()));
 });
 
-test("the installer takes the version as its positional argument when one is pinned", () => {
+test("the installer takes the version as its positional argument, pinned to the one a real run proved", () => {
+    assert.equal(COOLIFY_VERSION, "4.3.23");
+    assert.match(script(), /install\.sh \| bash -s 4\.3\.23\n/);
     assert.match(script({ coolifyVersion: "4.0.0-beta.400" }), /install\.sh \| bash -s 4\.0\.0-beta\.400\n/);
-    assert.match(script(), /install\.sh \| bash -s \n/);
     assert.throws(() => script({ coolifyVersion: "1; rm -rf /" }), /does not look like a Coolify version/);
 });
 
